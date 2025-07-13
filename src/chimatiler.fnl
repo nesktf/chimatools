@@ -66,7 +66,7 @@
   (os.exit (or code 1)))
 
 (case (assimp.import_file "../game_test/res/chiruno/chiruno.gltf")
-  scene (print (scene:has_meshes))
+  scene (print (scene:get_name))
   (nil err) (print "ASSIMP: " err))
 
 ; (case (magick.load_image_from_blob (magick.thumb in-file (mm->str 300 40)))
