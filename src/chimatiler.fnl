@@ -1,9 +1,9 @@
 (local magick (require :magick))
-(local assimp (require :assimp))
+; (local assimp (require :assimp))
 
-(local in-file "chimata.png")
-(local out-file "chimaout")
-(local out-fmt "png")
+(local in-file :res/chimata.png)
+(local out-file :res/chimaout)
+(local out-fmt :png)
 
 ;; GIMP 300ppi A4
 (local paper-size {:w 2480 :h 3508})
@@ -65,10 +65,11 @@
   (print (string.format "%s" msg))
   (os.exit (or code 1)))
 
-(case (assimp.import_file "../game_test/res/chiruno/chiruno.gltf")
-  scene (print (scene:get_name))
-  (nil err) (print "ASSIMP: " err))
+; (case (assimp.import_file "../game_test/res/chiruno/chiruno.gltf")
+;   scene (print (scene:get_name))
+;   (nil err) (print "ASSIMP: " err))
 
-; (case (magick.load_image_from_blob (magick.thumb in-file (mm->str 300 40)))
-;   chima-in (write-thing! chima-in)
-;   (nil err) (on-die err))
+(case (magick.load_image_from_blob (magick.thumb in-file (mm->str 300 40)))
+  chima-in (write-thing! chima-in)
+  (nil err) (on-die err))
+
