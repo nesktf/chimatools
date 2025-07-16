@@ -1,8 +1,43 @@
-(local common (require :chimatools.common))
+(local blob (require :chimatools.blob))
+(local util (require :chimatools.util))
+
+(fn create-spritesheet-blob [sprite-list anim-list image]
+  (let [parse-sprite-names (fn []
+                             (local names [])
+                             (each [_i sprite (ipairs sprite-list)]
+                               (table.insert names sprite.name))
+                             (each [_i anim (ipairs anim-list)]
+                               (table.insert names anim.name))
+                             names)
+        sprite-count (length sprite-list)
+        sprite-data-sz (* sprite-count blob.sizes.sprite)
+        anim-count (length anim-list)
+        anim-data-sz (* anim-count blob.sizes.anim)
+        names (parse-sprite-names sprite-list anim-list)
+        string-offset (+ blob.sizes.header blob.sizes.sprite-meta
+                         sprite-data-sz anim-data-sz)
+        strings (blob.fill-strings names string-offset)
+        header-data (blob.fill-chima-header :sprite)
+        image-offset (+ string-offset strings.size)
+        meta-data (blob.fill-sprite-meta {: sprite-count
+                                          : anim-count
+                                          : image-offset
+                                          :image-width image.width
+                                          :image-height image.height
+                                          :image-channels image.channels
+                                          :image-format image.format})
+        sprite-data (blob.fill-sprite sprite-list sprite-count strings)
+        anim-data (blob.fill-anim anim-list anim-count sprite-count strings)
+        string-data strings.data
+        image-data image.data
+        blob-sz (+ image-offset image.size)]
+    (util.chima-log "Sprite blob created (%d bytes)" blob-sz)
+    {:data (.. header-data meta-data sprite-data anim-data string-data
+               image-data)
+     :size blob-sz}))
 
 (local ffi (require :ffi))
 (local magick (require :magick))
-(local inspect (require :inspect))
 
 (fn image-props [image]
   (let [arr (ffi.new "ssize_t[4]")]
@@ -37,16 +72,40 @@
     (paper:write :res/chimaout.png)
     (print :CHIMADONE)))
 
-(fn gen-blob [image-list]
-  (let [blob-header (common.make-chima-header :sprite)]
-    blob-header))
+(fn generate-atlas [sprites]
+  {})
 
-(fn validate-image-list [image-list]
-  image-list)
+(fn parse-images [images]
+  {})
 
-(fn create-spritesheet-blob [image-list]
-  (case (validate-image-list image-list)
-    images (gen-blob images)
-    (nil err) (values nil err)))
+(local format-checks
+       {:png (fn [...])
+        :gif (fn [image i]
+               (util.chima-assert (= (type image.fps) :number)
+                                  "Invalid fps at animation %d" i))})
 
-{: create-spritesheet-blob}
+(fn validate-images [images]
+  (each [i image (ipairs images)]
+    (util.chima-assert (= (type image.path) :string) "Invalid path at image %d"
+                       i)
+    (util.chima-assert (util.file-exists image.path)
+                       "File \"%s\" not found at image %d" image.path i)
+    (util.chima-assert (= (type image.name) :string) "Invalid name at image %d"
+                       i)
+    (let [image-format (util.parse-file-format image.path)
+          checker (. format-checks image-format)]
+      (util.chima-assert (not= checker nil)
+                         "Format \"%s\" not supported at image %d" image-format
+                         i)
+      (checker image i)
+      (set image.format image-format)))
+  images)
+
+(λ create-spritesheet [image-list]
+  (case (pcall validate-images image-list)
+    (true images) (let [{: sprites : anims} (parse-images images)
+                        image (generate-atlas sprites)]
+                    (create-spritesheet-blob sprites anims image))
+    (false err) (values nil err)))
+
+{: create-spritesheet}

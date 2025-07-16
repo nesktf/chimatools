@@ -1,4 +1,4 @@
-(local {: create-spritesheet-blob} (require :chimatools.sprite))
+(local sprite (require :chimatools.sprite))
 
 (fn write-to-file! [blob file-path]
   (let [file (io.open file-path "wb")
@@ -11,8 +11,7 @@
         (values nil "Failed to open file"))))
 
 {:write_spritesheet (λ [image-list file-path]
-                      (case (create-spritesheet-blob image-list)
+                      (case (sprite.create-spritesheet image-list)
                         sprite-blob (write-to-file! sprite-blob file-path)
                         (nil err) (values nil err)))
- :create_spritesheet (λ [image-list]
-                       (create-spritesheet-blob image-list))}
+ :create_spritesheet sprite.create-spritesheet}
