@@ -166,4 +166,5 @@
  : fill-strings
  : fill-sprite-meta
  : fill-sprite
- : fill-anim}
+ : fill-anim
+ : sizes}

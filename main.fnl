@@ -8,4 +8,4 @@
 
 (case (chimatools.write_spritesheet images :res/chimaout.chima)
   chima-path (print (string.format "Sprite chima file written to %s" chima-path))
-  (nil err) (print "Failed to create chima file: %s" err))
+  (nil err) (print err))
