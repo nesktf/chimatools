@@ -4,6 +4,8 @@
 #define CHIMADEF extern
 #define CHIMA_STRING_MAX_SIZE 1024
 #define CHIMA_FORMAT_MAX_SIZE 7
+#define CHIMA_TRUE 1
+#define CHIMA_FALSE 0
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +35,8 @@ typedef struct chima_string {
   char data[CHIMA_STRING_MAX_SIZE];
 } chima_string;
 
+typedef uint32_t chima_bool;
+
 typedef enum chima_image_depth {
   CHIMA_DEPTH_8U = 0,
   CHIMA_DEPTH_16U,
@@ -47,10 +51,17 @@ typedef struct chima_image {
   uint32_t height;
   uint8_t channels;
   uint8_t depth;
-  char format[CHIMA_FORMAT_MAX_SIZE];
-  chima_string name;
+  // char format[CHIMA_FORMAT_MAX_SIZE];
   void* data;
 } chima_image;
+
+typedef struct chima_color {
+  float r, g, b, a;
+} chima_color;
+
+chima_return chima_create_image(chima_context ctx, chima_image* image, uint32_t w, uint32_t h,
+                                uint32_t channels, chima_image_depth depth, chima_color color);
+chima_bool chima_composite_image(chima_image* dst, const chima_image* src, uint32_t w, uint32_t h);
 
 typedef struct chima_anim {
   chima_image* images;
