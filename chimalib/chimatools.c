@@ -1,6 +1,3 @@
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_RECT_PACK_IMPLEMENTATION
-
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "stb_rect_pack.h"
@@ -38,13 +35,14 @@ static void* chima_realloc(void* user, void* ptr, size_t oldsz, size_t newsz) {
   return mem;
 }
 
-uint32_t chima_create_context(chima_context* ctx, const chima_alloc* alloc) {
+chima_return chima_create_context(chima_context* ctx, const chima_alloc* alloc) {
+  if (!ctx) {
+    return CHIMA_INVALID_VALUE;
+  }
+
   chima_alloc chima_funcs;
   if (alloc) {
-    chima_funcs.user_data = alloc->user_data;
-    chima_funcs.malloc = alloc->malloc;
-    chima_funcs.free = alloc->free;
-    chima_funcs.realloc = alloc->realloc;
+    chima_funcs = *alloc;
   } else {
     chima_funcs.user_data = NULL;
     chima_funcs.malloc = &chima_malloc;
@@ -189,8 +187,7 @@ chima_return chima_load_image(chima_context ctx, const char* path,
 }
 
 void chima_free_image(chima_context ctx, chima_image* image) {
-  const chima_alloc* a = &ctx->alloc;
-  a->free(a->user_data, image->data);
+  CHIMA_FREE(ctx, image->data);
 }
 
 chima_return chima_create_image(chima_context ctx, chima_image* image, uint32_t w, uint32_t h,
@@ -364,7 +361,7 @@ chima_return chima_load_gif(chima_context ctx, const char* path,
     gr->data = data;
     gr->delay = gif.delay;
     prev = gr;
-    gr = ctx->alloc.malloc(ctx->alloc.user_data, sizeof(gif_result));
+    gr = CHIMA_MALLOC(ctx, sizeof(gif_result));
     assert(gr);
     memset(gr, 0, sizeof(gif_result));
 
@@ -374,12 +371,12 @@ chima_return chima_load_gif(chima_context ctx, const char* path,
 
     ++frames;
   }
-  ctx->alloc.free(ctx->alloc.user_data, gif.out);
-  ctx->alloc.free(ctx->alloc.user_data, gif.history);
-  ctx->alloc.free(ctx->alloc.user_data, gif.background);
+  CHIMA_FREE(ctx, gif.out);
+  CHIMA_FREE(ctx, gif.history);
+  CHIMA_FREE(ctx, gif.background);
 
   if (gr != &head) {
-    ctx->alloc.free(ctx->alloc.user_data, gr);
+    CHIMA_FREE(ctx, gr);
   }
   assert(0);
 
@@ -406,17 +403,23 @@ int main() {
   uint32_t ret = chima_create_image(chima, &dst, 1024, 1024, 4, CHIMA_DEPTH_8U, color);
   assert(ret == CHIMA_NO_ERROR);
 
-  chima_image src;
-  ret = chima_load_image(chima, "res/chimata.png", &src, CHIMA_DEPTH_8U);
+  chima_image chimata;
+  ret = chima_load_image(chima, "res/chimata.png", &chimata, CHIMA_DEPTH_8U);
   assert(ret == CHIMA_NO_ERROR);
 
-  chima_bool coso = chima_composite_image(&dst, &src, 0, 0);
+  chima_image marisa;
+  ret = chima_load_image(chima, "res/marisa_emacs.png", &marisa, CHIMA_DEPTH_8U);
+  assert(ret == CHIMA_NO_ERROR);
+
+  chima_bool coso = chima_composite_image(&dst, &chimata, 0, 0);
+  assert(coso);
+  coso = chima_composite_image(&dst, &marisa, chimata.width, 0);
   assert(coso);
 
   size_t st = dst.width*dst.channels*sizeof(uint8_t);
   stbi_write_png("res/copy_test.png", dst.width, dst.height, dst.channels, dst.data, st);
 
-  chima_free_image(chima, &src);
+  chima_free_image(chima, &chimata);
   chima_free_image(chima, &dst);
   chima_destroy_context(chima);
 }

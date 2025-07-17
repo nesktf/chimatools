@@ -26,7 +26,7 @@ typedef enum chima_return {
   _CHIMA_RETURN_FORCE_32BIT = 0x7fffffff,
 } chima_return;
 
-CHIMADEF uint32_t chima_create_context(chima_context* ctx, const chima_alloc* alloc);
+CHIMADEF chima_return chima_create_context(chima_context* ctx, const chima_alloc* alloc);
 CHIMADEF void chima_destroy_context(chima_context ctx);
 CHIMADEF const char* chima_error_string(chima_return ret);
 
@@ -59,9 +59,11 @@ typedef struct chima_color {
   float r, g, b, a;
 } chima_color;
 
-chima_return chima_create_image(chima_context ctx, chima_image* image, uint32_t w, uint32_t h,
-                                uint32_t channels, chima_image_depth depth, chima_color color);
-chima_bool chima_composite_image(chima_image* dst, const chima_image* src, uint32_t w, uint32_t h);
+CHIMADEF chima_return chima_create_image(chima_context ctx, chima_image* image,
+                                         uint32_t w, uint32_t h, uint32_t channels,
+                                         chima_image_depth depth, chima_color color);
+CHIMADEF chima_bool chima_composite_image(chima_image* dst, const chima_image* src,
+                                          uint32_t w, uint32_t h);
 
 typedef struct chima_anim {
   chima_image* images;
