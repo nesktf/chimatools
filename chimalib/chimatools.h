@@ -3,7 +3,6 @@
 #include "chima_common.h"
 #define CHIMADEF extern
 #define CHIMA_STRING_MAX_SIZE 1024
-#define CHIMA_FORMAT_MAX_SIZE 7
 #define CHIMA_TRUE 1
 #define CHIMA_FALSE 0
 
@@ -14,10 +13,22 @@ extern "C" {
 struct chima_context_;
 typedef struct chima_context_ *chima_context;
 
+typedef uint32_t chima_bool;
+
+typedef struct chima_string {
+  uint32_t length;
+  char data[CHIMA_STRING_MAX_SIZE];
+} chima_string;
+
+typedef struct chima_color {
+  float r, g, b, a;
+} chima_color;
+
 typedef enum chima_return {
   CHIMA_NO_ERROR = 0,
   CHIMA_ALLOC_FAILURE,
   CHIMA_FILE_OPEN_FAILURE,
+  CHIMA_FILE_WRITE_FAILURE,
   CHIMA_IMAGE_PARSE_FAILURE,
   CHIMA_INVALID_VALUE,
   CHIMA_INVALID_FORMAT,
@@ -27,78 +38,66 @@ typedef enum chima_return {
 } chima_return;
 
 CHIMADEF chima_return chima_create_context(chima_context* ctx, const chima_alloc* alloc);
+
 CHIMADEF void chima_destroy_context(chima_context ctx);
+
 CHIMADEF const char* chima_error_string(chima_return ret);
 
-typedef struct chima_string {
-  uint32_t length;
-  char data[CHIMA_STRING_MAX_SIZE];
-} chima_string;
+typedef enum chima_image_format {
+  CHIMA_FORMAT_RAW = 0,
+  CHIMA_FORMAT_PNG,
+  CHIMA_FORMAT_BMP,
+  CHIMA_FORMAT_TGA,
+  CHIMA_FORMAT_COUNT,
 
-typedef uint32_t chima_bool;
+  _CHIMA_FORMAT_FORCE_32BIT = 0x7ffffff,
+} chima_image_format;
 
-typedef enum chima_image_depth {
-  CHIMA_DEPTH_8U = 0,
-  CHIMA_DEPTH_16U,
-  CHIMA_DEPTH_32F,
-  CHIMA_DEPTH_COUNT,
-
-  _CHIMA_DEPTH_FORCE_32BIT = 0x7fffffff,
-} chima_image_depth;
-
+typedef struct chima_anim chima_anim;
 typedef struct chima_image {
   uint32_t width;
   uint32_t height;
   uint8_t channels;
-  uint8_t depth;
-  // char format[CHIMA_FORMAT_MAX_SIZE];
   void* data;
+  chima_anim* anim;
 } chima_image;
 
-typedef struct chima_color {
-  float r, g, b, a;
-} chima_color;
+CHIMADEF chima_return chima_create_image(chima_context chima, chima_image* image,
+                                         uint32_t w, uint32_t h, uint32_t ch, chima_color color);
 
-CHIMADEF chima_return chima_create_image(chima_context ctx, chima_image* image,
-                                         uint32_t w, uint32_t h, uint32_t channels,
-                                         chima_image_depth depth, chima_color color);
-CHIMADEF chima_bool chima_composite_image(chima_image* dst, const chima_image* src,
-                                          uint32_t w, uint32_t h);
+CHIMADEF chima_return chima_load_image(chima_context chima, const char* path,
+                                       chima_image* image, chima_bool flip_y);
+
+CHIMADEF chima_return chima_load_image_mem(chima_context chima,
+                                           const uint8_t* buffer, size_t len,
+                                           chima_image* image, chima_bool flip_y);
+
+CHIMADEF chima_return chima_write_image(chima_context chima,
+                                        const chima_image* image, const char* path,
+                                        chima_image_format format);
+
+CHIMADEF void chima_destroy_image(chima_context chima, chima_image* image);
+
+CHIMADEF chima_return chima_composite_image(chima_image* dst, const chima_image* src,
+                                            uint32_t y, uint32_t x);
 
 typedef struct chima_anim {
   chima_image* images;
   size_t image_count;
+  float fps;
 } chima_anim;
 
-typedef enum chima_asset_type {
-  CHIMA_ASSET_INVALID = 0,
-  CHIMA_ASSET_SPRITESHEET,
-  CHIMA_ASSET_MODEL3D,
-  CHIMA_ASSET_COUNT,
+CHIMADEF chima_return chima_load_anim(chima_context chima, const char* path,
+                                      chima_anim* anim, chima_bool flip_y);
 
-  _CHIMA_ASSET_FORCE_32BIT = 0x7ffffff,
-} chima_asset_type;
+CHIMADEF chima_return chima_load_anim_mem(chima_context chima,
+                                          const uint8_t* buffer, size_t len,
+                                          chima_anim* anim, chima_bool flip_y);
 
-typedef struct chima_file_header {
-  uint8_t magic[12];
-  uint16_t file_enum;
-  uint8_t ver_maj;
-  uint8_t ver_min;
-} chima_file_header;
-CHIMA_STATIC_ASSERT(sizeof(chima_file_header) == 16);
+CHIMADEF void chima_destroy_anim(chima_context chima, chima_anim* anim);
 
-typedef struct chima_file_sprite_meta {
-  uint32_t sprite_count;
-  uint32_t anim_count;
-  uint32_t image_width;
-  uint32_t image_height;
-  uint32_t image_offset;
-  uint8_t image_channels;
-  char image_format[7]; // Up to 6 chars + null terminator
-} chima_file_sprite_meta;
-CHIMA_STATIC_ASSERT(sizeof(chima_file_sprite_meta) == 28);
-
-typedef struct chima_file_sprite {
+typedef struct chima_sprite {
+  chima_string name;
   uint32_t width;
   uint32_t height;
   uint32_t x_off;
@@ -107,19 +106,23 @@ typedef struct chima_file_sprite {
   float uv_x_con;
   float uv_y_lin;
   float uv_y_con;
-  uint32_t name_offset;
-  uint32_t name_size;
-} chima_file_sprite;
-CHIMA_STATIC_ASSERT(sizeof(chima_file_sprite) == 40);
+} chima_sprite;
 
-typedef struct chima_file_anim {
-  uint32_t sprite_idx;
-  uint32_t sprite_count;
-  uint32_t name_offset;
-  uint32_t name_size;
+typedef struct chima_sprite_anim {
+  chima_string name;
+  size_t* sprite_indices;
+  size_t sprite_count;
   float fps;
-} chima_file_anim;
-CHIMA_STATIC_ASSERT(sizeof(chima_file_anim) == 20);
+} chima_sprite_anim;
+
+CHIMADEF chima_return chima_create_atlas_image(chima_context chima,
+                                               chima_image* atlas, chima_sprite* sprites,
+                                               const chima_image* images, size_t image_count);
+
+CHIMADEF chima_return chima_write_spritesheet(chima_context chima,
+                                              const char* path, const chima_image* atlas,
+                                              const chima_sprite* sprites, size_t sprite_count,
+                                              const chima_sprite_anim* anims, size_t anim_count);
 
 #ifdef __cplusplus
 }

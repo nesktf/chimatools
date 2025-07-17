@@ -3,11 +3,9 @@
 #ifdef __cplusplus
 #include <cstdint>
 #include <cstddef>
-#define CHIMA_STATIC_ASSERT(cond, ...) static_assert(cond,##__VA_ARGS__)
 #else
 #include <stdint.h>
 #include <stddef.h>
-#define CHIMA_STATIC_ASSERT(cond, ...) _Static_assert(cond,##__VA_ARGS__)
 #endif
 
 #ifdef __cplusplus
