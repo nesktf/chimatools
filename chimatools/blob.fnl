@@ -50,7 +50,7 @@
     uint32_t sprite_count;
     uint32_t name_offset;
     uint32_t name_size;
-    float anim_fps;
+    float fps;
   } chima_anim_t; // sizeof: 20 bytes
 ")
 
@@ -81,7 +81,7 @@
     (set data.ver_min (. chima-version 2))
     (ffi.string data sizes.header)))
 
-(fn calc-string-offsets [string-list sizes blob-offset]
+(fn calc-array-offsets [string-list sizes blob-offset]
   (let [sum-off-until (fn [idx]
                         (var off blob-offset)
                         (for [i 1 (- idx 1)]
@@ -97,20 +97,44 @@
   (let [sizes (util.tbl-map string-list
                             (fn [val]
                               (length val)))
-        offsets (calc-string-offsets string-list sizes blob-offset)
-        bank-data (util.tbl-reduce string-list
-                                   (fn [str val]
-                                     (.. str val))
-                                   "")
-        bank-len (length bank-data)
+        offsets (calc-array-offsets string-list sizes blob-offset)
+        string-data (util.tbl-reduce string-list
+                                     (fn [str val]
+                                       (.. str val))
+                                     "")
+        data-len (length string-data)
         bytes-len (ffi.new "uint32_t[1]")
-        bytes-data (ffi.new "uint8_t[?]" bank-len)]
-    (set (. bytes-len 0) bank-len)
-    (ffi.copy bytes-data bank-data bank-len)
+        bytes-data (ffi.new "uint8_t[?]" data-len)]
+    (set (. bytes-len 0) data-len)
+    (ffi.copy bytes-data string-data data-len)
     {: sizes
      : offsets
-     :data (.. (ffi.string bytes-len 4) (ffi.string bytes-data bank-len))
-     :size (+ 4 bank-len)}))
+     :data (.. (ffi.string bytes-len 4) (ffi.string bytes-data data-len))
+     :size (+ 4 data-len)}))
+
+(fn fill-indices [indices-list blob-offset]
+  "Create an indices blob from a list of lists of indices and an initial byte offset"
+  "The blob is in the format (len, data...)"
+  (let [sizes (util.tbl-map indices-list
+                            (fn [indices]
+                              (length indices)))
+        offsets (calc-array-offsets indices-list sizes blob-offset)
+        idx-count (util.tbl-reduce sizes
+                                   (fn [sz val]
+                                     (+ sz val))
+                                   1)
+        bytes-size (* idx-count 4)
+        bytes-data (ffi.new "uint32_t[?]" idx-count)]
+    (set (. bytes-data 0) idx-count)
+    (var byte-pos 1)
+    (each [_i indices (ipairs indices-list)]
+      (each [_j idx (ipairs indices)]
+        (set (. bytes-data byte-pos) idx)
+        (set byte-pos (+ byte-pos 1))))
+    {: sizes
+     : offsets
+     :data (ffi.string bytes-data bytes-size)
+     :size bytes-size}))
 
 (fn fill-sprite-meta [meta]
   "Create a sprite metadata blob"
@@ -159,11 +183,13 @@
         (set data.sprite_idx anim.sprite-idx)
         (set data.sprite_count anim.sprite-count)
         (set data.name_offset name-offset)
-        (set data.name_size name-size)))
+        (set data.name_size name-size)
+        (set data.fps anim.fps)))
     (ffi.string anim-arr blob-size)))
 
 {: fill-chima-header
  : fill-strings
+ : fill-indices
  : fill-sprite-meta
  : fill-sprite
  : fill-anim

@@ -24,6 +24,24 @@
     (set (. out k) (func k val)))
   out)
 
+(fn tbl-merge [a b]
+  (local out [])
+  (each [_k val (ipairs a)]
+    (table.insert out val))
+  (each [_k val (ipairs b)]
+    (table.insert out val))
+  out)
+
+(fn tbl-merge-to! [dst src]
+  (each [_k val (ipairs src)]
+    (table.insert dst val))
+  dst)
+
+(fn idx-tbl-c-idx [idx-tbl]
+  (let [out []]
+    (each [_i idx (ipairs idx-tbl)]
+      (table.insert out (- idx 1)))))
+
 (fn parse-file-format [path]
   "nil")
 
@@ -46,6 +64,9 @@
  : chima-log
  : parse-file-format
  : file-exists
+ : idx-tbl-c-idx
+ : tbl-merge
+ : tbl-merge-to!
  : tbl-reduce
  : tbl-kreduce
  : tbl-map
