@@ -279,18 +279,34 @@ chima_bool chima_composite_image(chima_image* dst, const chima_image* src, uint3
 
   switch (dst->depth) {
     case CHIMA_DEPTH_8U: {
-      size_t row_offset = (h*dst->width + w)*dst->channels;
-      uint8_t* pos = ((uint8_t*)dst->data) + row_offset;
-      uint8_t* end = dst->data + dst->channels*dst->width*dst->height;
+      const size_t dst_w = dst->width, dst_h = dst->height, dst_ch = dst->channels;
+      uint8_t* dst_row_start = dst->data + (h*dst_w + w)*dst_ch;
+      uint8_t* dst_end = dst->data + dst_w*dst_h*dst_ch;
+;
+      const size_t src_w = src->width, src_h = src->height, src_ch = src->channels;
+      const size_t src_row_pixels = w+src_w > dst_w ? dst_w - w : src_w;
+      size_t written_rows = 0;
 
-      size_t rows = 0;
-      size_t advance = w+src->width > dst->width ? dst->width - w : src->width;
-      while (pos < end && rows < src->height) {
-        uint8_t* srcp = src->data;
-        srcp += rows*src->width*src->channels;
-        memcpy(pos, srcp, advance*dst->channels);
-        rows++;
-        pos = pos + (dst->width*dst->channels);
+      while (dst_row_start < dst_end && written_rows < src_h) {
+        uint8_t* src_row_start = src->data + (written_rows*src_w*src_ch);
+        for (size_t pixel = 0; pixel < src_row_pixels; ++pixel) {
+          uint8_t* dst_pixel = dst_row_start+(pixel*dst_ch);
+          uint8_t* src_pixel = src_row_start+(pixel*src_ch);
+
+          float src_alpha = src_ch == 4 ? (float)(src_pixel[3])/256.f : 1.f;
+          float dst_alpha = dst_ch == 4 ? (float)(dst_pixel[3])/256.f : 1.f;
+          float comp_alpha = src_alpha + dst_alpha*(1.f-src_alpha);
+          for (uint32_t i = 0; i < dst_ch; ++i) {
+            if (i == 4){
+              dst_pixel[i] = (uint8_t)comp_alpha;
+            } else {
+              float dst_blend = dst_pixel[i]*dst_alpha*(1.f-src_alpha) + src_pixel[i]*src_alpha;
+              dst_pixel[i] = (uint8_t)roundf(dst_blend/comp_alpha);
+            }
+          }
+        }
+        ++written_rows;
+        dst_row_start += dst_w*dst_ch;
       }
       break;
     }
@@ -413,7 +429,7 @@ int main() {
 
   chima_bool coso = chima_composite_image(&dst, &chimata, 0, 0);
   assert(coso);
-  coso = chima_composite_image(&dst, &marisa, chimata.width, 0);
+  coso = chima_composite_image(&dst, &marisa, chimata.width/2, 0);
   assert(coso);
 
   size_t st = dst.width*dst.channels*sizeof(uint8_t);
