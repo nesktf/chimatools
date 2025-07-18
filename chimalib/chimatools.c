@@ -16,6 +16,8 @@
 
 typedef struct chima_context_ {
   chima_alloc alloc;
+  size_t image_count;
+  size_t anim_count;
 } chima_context_;
 
 static void* chima_malloc(void* user, size_t size) {
@@ -39,8 +41,8 @@ static void* chima_realloc(void* user, void* ptr, size_t oldsz, size_t newsz) {
   return mem;
 }
 
-chima_return chima_create_context(chima_context* ctx, const chima_alloc* alloc) {
-  if (!ctx) {
+chima_return chima_create_context(chima_context* chima, const chima_alloc* alloc) {
+  if (!chima) {
     return CHIMA_INVALID_VALUE;
   }
 
@@ -57,15 +59,17 @@ chima_return chima_create_context(chima_context* ctx, const chima_alloc* alloc) 
   assert(chima_funcs.free);
   assert(chima_funcs.realloc);
 
-  chima_context chima = chima_funcs.malloc(chima_funcs.user_data, sizeof(chima_context_));
-  if (!chima) {
-    *ctx = NULL;
+  chima_context ctx = chima_funcs.malloc(chima_funcs.user_data, sizeof(chima_context_));
+  if (!ctx) {
+    *chima = NULL;
     return CHIMA_ALLOC_FAILURE;
   }
+  memset(ctx, 0, sizeof(chima_context_));
+  ctx->image_count = 0;
+  ctx->anim_count = 0;
+  ctx->alloc = chima_funcs;
 
-  chima->alloc = chima_funcs;
-
-  (*ctx) = chima;
+  (*chima) = ctx;
   return CHIMA_NO_ERROR;
 }
 
@@ -91,80 +95,56 @@ const char* chima_error_string(chima_return ret) {
   }
 }
 
-// typedef enum chima_image_depth {
-//   CHIMA_DEPTH_8U = 0,
-//   CHIMA_DEPTH_16U,
-//   CHIMA_DEPTH_32F,
-//   CHIMA_DEPTH_COUNT,
-//
-//   _CHIMA_DEPTH_FORCE_32BIT = 0x7fffffff,
-// } chima_image_depth;
+static void rename_image(const char* name, chima_image* image, size_t fmt_count) {
+  if (name) {
+    image->name.length = strlen(name);
+    memcpy(image->name.data, name, image->name.length+1); // copy null terminator
+  } else {
+    int len = snprintf(image->name.data, CHIMA_STRING_MAX_SIZE,
+                       "chima_image%lu", fmt_count);
+    assert(len > 0);
+    image->name.length = (size_t)len-1; // No null terminator
+  }
+}
 
-chima_return chima_create_image(chima_context ctx, chima_image* image,
-                                uint32_t w, uint32_t h, uint32_t ch, chima_color color)
+static void rename_anim(const char* name, chima_anim* anim, size_t fmt_count) {
+  char name_fmt_buff[1024] = {0};
+  if (name) {
+    anim->name.length = strlen(name);
+    memcpy(anim->name.data, name, anim->name.length+1); // copy null terminator
+  } else {
+    int len = snprintf(anim->name.data, CHIMA_STRING_MAX_SIZE,
+                       "chima_anim%lu", fmt_count);
+    assert(len > 0);
+    anim->name.length = (size_t)len-1; // No null terminator
+  }
+
+  const char fmt[] = ".%lu";
+  memcpy(name_fmt_buff, anim->name.data, anim->name.length);
+  memcpy(name_fmt_buff+anim->name.length, fmt, sizeof(fmt));
+  // Names each animation like "<anim_name>.<image_idx>"
+  for (size_t i = 0; i < anim->image_count; ++i) {
+    chima_image* image = anim->images+i;
+    int len = snprintf(image->name.data, CHIMA_STRING_MAX_SIZE,
+                       name_fmt_buff, i);
+    assert(len > 0);
+    image->name.length = (size_t)len-1; // No null terminator
+  }
+}
+
+chima_return chima_create_image(chima_context chima, chima_image* image,
+                                uint32_t w, uint32_t h, uint32_t ch,
+                                chima_color color, const char* name)
 {
-  if (!ctx || !image || !w || !h) {
+  if (!chima || !image || !w || !h) {
     return CHIMA_INVALID_VALUE;
   }
   if (!ch || ch > 4) {
     return CHIMA_INVALID_VALUE;
   }
 
-  // switch (depth) {
-  //   case CHIMA_DEPTH_8U: {
-  //     size_t stride = channels*sizeof(uint8_t);
-  //     size_t sz = w*h*stride;
-  //     data = CHIMA_MALLOC(ctx, sz);
-  //     if (!data){
-  //       return CHIMA_ALLOC_FAILURE;
-  //     }
-  //     uint8_t cols[] = {
-  //       (uint8_t)floorf(color.r*0xFF),
-  //       (uint8_t)floorf(color.g*0xFF),
-  //       (uint8_t)floorf(color.b*0xFF),
-  //       (uint8_t)floorf(color.a*0xFF),
-  //     };
-  //     for (size_t i = 0; i < sz; i += stride) {
-  //       memcpy(data+i, cols, stride);
-  //     }
-  //     break;
-  //   }
-  //   case CHIMA_DEPTH_16U: {
-  //     size_t stride = channels*sizeof(uint16_t);
-  //     size_t sz = w*h*stride;
-  //     data = CHIMA_MALLOC(ctx, sz);
-  //     if (!data){
-  //       return CHIMA_ALLOC_FAILURE;
-  //     }
-  //     uint16_t cols[] = {
-  //       (uint16_t)floorf(color.r*0xFFFF),
-  //       (uint16_t)floorf(color.g*0xFFFF),
-  //       (uint16_t)floorf(color.b*0xFFFF),
-  //       (uint16_t)floorf(color.a*0xFFFF),
-  //     };
-  //     for (size_t i = 0; i < sz; i += stride) {
-  //       memcpy(data+i, cols, stride);
-  //     }
-  //     break;
-  //   }
-  //   case CHIMA_DEPTH_32F: {
-  //     size_t stride = channels*sizeof(uint16_t);
-  //     size_t sz = w*h*stride;
-  //     data = CHIMA_MALLOC(ctx, sz);
-  //     if (!data){
-  //       return CHIMA_ALLOC_FAILURE;
-  //     }
-  //     float cols[] = {color.r, color.g, color.b, color.a};
-  //     for (size_t i = 0; i < sz; i += stride) {
-  //       memcpy(data+i, cols, stride);
-  //     }
-  //     break;
-  //   }
-  //   default: CHIMA_UNREACHABLE();
-  // }
-
   size_t sz = w*h*ch;
-  void* data = CHIMA_MALLOC(ctx, sz);
+  void* data = CHIMA_MALLOC(chima, sz);
   if (!data){
     return CHIMA_ALLOC_FAILURE;
   }
@@ -178,12 +158,15 @@ chima_return chima_create_image(chima_context ctx, chima_image* image,
     memcpy(data+i, cols, ch);
   }
 
+  memset(image, 0, sizeof(chima_image));
   image->width = w;
   image->height = h;
   image->channels = ch;
   image->data = data;
   image->anim = NULL;
-  // image->depth = depth;
+  image->depth = CHIMA_DEPTH_8U;
+  rename_image(name, image, chima->image_count);
+  ++chima->image_count;
 
   return CHIMA_NO_ERROR;
 }
@@ -214,41 +197,13 @@ static chima_return load_texels(stbi__context* stbi, stbi__result_info* ri, void
   // TODO: Handle image depth requests
   stbi__postprocess_8bit(stbi, ri, result, *w, *h, *comp, req_comp, flip_y);
 
-  // switch (depth) {
-  //   case CHIMA_DEPTH_8U: {
-  //     printf("Processing 8bit\n");
-  //     stbi__postprocess_8bit(&stbi, &ri, &result, w, h, comp, req_comp, flip_y);
-  //     // if (result) {
-  //     //   // need to 'unget' all the characters in the IO buffer
-  //     //   fseek(f, - (int) (stbi.img_buffer_end - stbi.img_buffer), SEEK_CUR);
-  //     // }
-  //     break;
-  //   }
-  //   case CHIMA_DEPTH_16U: {
-  //     stbi__postprocess_16bit(&stbi, &ri, &result, w, h, comp, req_comp, flip_y);
-  //     // if (result) {
-  //     //   // need to 'unget' all the characters in the IO buffer
-  //     //   fseek(f, - (int) (stbi.img_buffer_end - stbi.img_buffer), SEEK_CUR);
-  //     // }
-  //     break;
-  //   }
-  //   case CHIMA_DEPTH_32F: {
-  //     stbi__postprocess_8bit(&stbi, &ri, &result, w, h, comp, req_comp, flip_y);
-  //     if (result) {
-  //       result = stbi__ldr_to_hdr(&stbi, result, w, h, req_comp ? req_comp : comp);
-  //     }
-  //     break;
-  //   }
-  //   default: CHIMA_UNREACHABLE();
-  // }
-
   return CHIMA_NO_ERROR;
 }
 
-chima_return chima_load_image(chima_context ctx, const char* path,
-                              chima_image* image, chima_bool flip_y)
+chima_return chima_load_image(chima_context chima, const char* path,
+                              chima_image* image, const char* name, chima_bool flip_y)
 {
-  if (!ctx || !path || !image) {
+  if (!chima || !path || !image) {
     return CHIMA_INVALID_VALUE;
   }
 
@@ -259,7 +214,7 @@ chima_return chima_load_image(chima_context ctx, const char* path,
 
   stbi__context stbi;
   stbi__start_file(&stbi, f);
-  stbi.a = ctx->alloc;
+  stbi.a = chima->alloc;
 
   stbi__result_info ri;
   prepare_stbi_ri(&ri);
@@ -274,34 +229,33 @@ chima_return chima_load_image(chima_context ctx, const char* path,
     return ret;
   }
 
+  assert(w > 0 && h > 0);
+  assert(comp > 0);
   assert(result);
-  image->channels = (uint8_t)comp;
-  image->height = (uint32_t)h;
+
+  memset(image, 0, sizeof(chima_image));
   image->width = (uint32_t)w;
+  image->height = (uint32_t)h;
+  image->channels = (uint32_t)comp;
   image->data = result;
   image->anim = NULL;
-
-  // image->depth = (uint8_t)depth;
-  // memset(image->format, 0, CHIMA_FORMAT_MAX_SIZE);
-  // strcpy(image->format, "RAW");
-  // size_t name_len = strlen(name);
-  // name_len = name_len > CHIMA_STRING_MAX_SIZE ? CHIMA_STRING_MAX_SIZE : name_len;
-  // strncpy(image->name.data, name, name_len);
-  // image->name.length = name_len;
+  image->depth = CHIMA_DEPTH_8U;
+  rename_image(name, image, chima->image_count);
+  ++chima->image_count;
 
   return CHIMA_NO_ERROR;
 }
 
-chima_return chima_load_image_mem(chima_context ctx, const uint8_t* buff, size_t len,
-                                  chima_image* image, chima_bool flip_y)
+chima_return chima_load_image_mem(chima_context chima, const uint8_t* buff, size_t len,
+                                  chima_image* image, const char* name, chima_bool flip_y)
 {
-  if (!ctx || !buff || !len || !image) {
+  if (!chima || !buff || !len || !image) {
     return CHIMA_INVALID_VALUE;
   }
 
   stbi__context stbi;
   stbi__start_mem(&stbi, buff, len);
-  stbi.a = ctx->alloc;
+  stbi.a = chima->alloc;
 
   stbi__result_info ri;
   prepare_stbi_ri(&ri);
@@ -321,6 +275,8 @@ chima_return chima_load_image_mem(chima_context ctx, const uint8_t* buff, size_t
   image->width = (uint32_t)w;
   image->data = result;
   image->anim = NULL;
+  rename_image(name, image, chima->image_count);
+  ++chima->image_count;
 
   return CHIMA_NO_ERROR;
 }
@@ -397,14 +353,17 @@ chima_return chima_composite_image(chima_image* dst, const chima_image* src,
   return CHIMA_NO_ERROR;
 }
 
-typedef struct gif_result {
-  void* data;
+typedef struct gif_node {
+  uint32_t width;
+  uint32_t height;
+  uint32_t channels;
   int delay;
-  struct gif_result* next;
-} gif_result;
+  void* data;
+  struct gif_node* next;
+} gif_node;
 
 chima_return chima_load_anim(chima_context chima, const char* path,
-                             chima_anim* anim, chima_bool flip_y)
+                             chima_anim* anim, const char* name, chima_bool flip_y)
 {
   if (!chima || !path || !anim) {
     return CHIMA_INVALID_VALUE;
@@ -422,8 +381,7 @@ chima_return chima_load_anim(chima_context chima, const char* path,
   stbi__result_info ri;
   prepare_stbi_ri(&ri);
 
-  int comp;
-  int req_comp = 0;
+  int comp = 0;
 
   if (!stbi__gif_test(&stbi)) {
     fclose(f);
@@ -434,51 +392,97 @@ chima_return chima_load_anim(chima_context chima, const char* path,
   memset(&gif, 0, sizeof(gif));
   void* data = NULL;
   uint8_t* two_back = NULL;
-
-  gif_result head;
-  memset(&head, 0, sizeof(head));
-
-  gif_result* prev = NULL;
-  gif_result* gr = &head;
-  size_t frames = 0;
+  chima_return ret = CHIMA_NO_ERROR;
 
   // https://gist.github.com/urraka/685d9a6340b26b830d49
-  while ((data = stbi__gif_load_next(&stbi, &gif, &comp, req_comp, two_back)) != NULL) {
+  gif_node head;
+  memset(&head, 0, sizeof(head));
+  uint32_t image_count = 0;
+  gif_node* curr_node = NULL;
+  chima_bool free_images = CHIMA_FALSE;
+  while ((data = stbi__gif_load_next(&stbi, &gif, &comp, 0, two_back)) != NULL) {
+    assert(comp);
     if (data == &stbi) {
       data = NULL;
       break;
     }
-    printf("- %lu (%p) -> %dx%d %d,%d %d\n",
-           frames, gif.out, gif.w, gif.h, gif.cur_x, gif.cur_y, gif.delay);
-    printf("- data %p\n", data);
 
-    gr->data = data;
-    gr->delay = gif.delay;
-    prev = gr;
-    gr = CHIMA_MALLOC(chima, sizeof(gif_result));
-    assert(gr);
-    memset(gr, 0, sizeof(gif_result));
+    if (!curr_node) {
+      curr_node = &head; // First image
+    } else {
+      gif_node* node = CHIMA_MALLOC(chima, sizeof(gif_node));
+      if (!node) {
+        ret = CHIMA_ALLOC_FAILURE;
+        free_images = CHIMA_TRUE;
+        goto free_nodes;
+      }
+      memset(node, 0, sizeof(gif_node));
+      curr_node->next = node;
+      curr_node = node;
+    }
 
-    char buff[1024];
-    snprintf(buff, 1024, "res/thing%lu.png", frames);
-    stbi_write_png(&chima->alloc, buff, gif.w, gif.h, comp, data, 0);
+    size_t image_sz = comp*gif.w*gif.h;
+    curr_node->data = CHIMA_MALLOC(chima, image_sz);
+    if (!curr_node->data) {
+      ret = CHIMA_ALLOC_FAILURE;
+      free_images = CHIMA_TRUE;
+      goto free_nodes;
+    }
+    memcpy(curr_node->data, data, image_sz);
+    curr_node->width = gif.w;
+    curr_node->height = gif.h;
+    curr_node->channels = comp;
+    curr_node->delay = gif.delay;
 
-    ++frames;
+    ++image_count;
   }
   CHIMA_FREE(chima, gif.out);
   CHIMA_FREE(chima, gif.history);
   CHIMA_FREE(chima, gif.background);
 
-  if (gr != &head) {
-    CHIMA_FREE(chima, gr);
+  chima_image* images = CHIMA_MALLOC(chima, image_count*sizeof(chima_image));
+  if (!images) {
+    ret = CHIMA_ALLOC_FAILURE;
+    free_images = CHIMA_TRUE;
+    goto free_nodes;
   }
-  assert(0);
+  memset(images, 0, image_count*sizeof(chima_image));
+  curr_node = &head;
+  size_t i = 0;
+  while (curr_node) {
+    images[i].data = curr_node->data;
+    images[i].height = curr_node->height;
+    images[i].width = curr_node->width;
+    images[i].channels = curr_node->channels;
+    images[i].anim = anim;
+    images[i].depth = CHIMA_DEPTH_8U;
+    curr_node = curr_node->next;
+    ++i;
+  }
 
-  // if (req_comp && req_comp != 4) {
-  //
-  // }
+  memset(anim, 0, sizeof(chima_anim));
+  anim->images = images;
+  anim->image_count = image_count;
+  anim->fps = 1000.f/(float)head.delay;
+  rename_anim(name, anim, chima->anim_count);
+  ++chima->anim_count;
+  chima->image_count += image_count;
 
-  return CHIMA_NO_ERROR;
+free_nodes:
+  curr_node = head.next;
+  while (curr_node) {
+    gif_node* node = curr_node;
+    curr_node = node->next;
+    if (node->data && free_images) {
+      CHIMA_FREE(chima, node->data);
+    }
+    CHIMA_FREE(chima, node);
+  }
+  if (free_images) {
+    CHIMA_FREE(chima, head.data);
+  }
+
+  return ret;
 }
 
 void chima_destroy_anim(chima_context chima, chima_anim* anim) {
@@ -486,18 +490,89 @@ void chima_destroy_anim(chima_context chima, chima_anim* anim) {
     return;
   }
   for (size_t i = 0; i < anim->image_count; ++i) {
-    chima_destroy_image(chima, anim->images+i);
+    CHIMA_FREE(chima, anim->images[i].data);
   }
+  CHIMA_FREE(chima, anim->images);
 }
 
-typedef enum chima_asset_type {
-  CHIMA_ASSET_INVALID = 0,
-  CHIMA_ASSET_SPRITESHEET,
-  CHIMA_ASSET_MODEL3D,
-  CHIMA_ASSET_COUNT,
+chima_return chima_create_atlas_image(chima_context chima,
+                                      chima_image* atlas, chima_sprite* sprites,
+                                      const chima_image** images, size_t image_count)
+{
 
-  _CHIMA_ASSET_FORCE_32BIT = 0x7ffffff,
-} chima_asset_type;
+  return CHIMA_NO_ERROR;
+}
+
+chima_return chima_build_spritesheet(chima_context chima,
+                                     chima_spritesheet* sheet,
+                                     const chima_image* images, size_t image_count,
+                                     const chima_anim* anims, size_t anim_count)
+{
+  if (!chima || !sheet) {
+    return CHIMA_INVALID_VALUE;
+  }
+
+  if (!images || !image_count) {
+    return CHIMA_INVALID_VALUE;
+  }
+
+  if (!anims || !anim_count) {
+    return CHIMA_INVALID_VALUE;
+  }
+
+  size_t total_images = image_count;
+  for (size_t i = 0; i < anim_count; ++i) {
+    total_images += anims[i].image_count;
+  }
+
+  const chima_image** image_buffer = CHIMA_MALLOC(chima, total_images*sizeof(chima_image));
+  if (!image_buffer) {
+    return CHIMA_ALLOC_FAILURE;
+  }
+  memset(image_buffer, 0, total_images*sizeof(const chima_image*));
+
+  size_t image_off = 0;
+  for (; image_off < image_count; ++image_off){
+    image_buffer[image_off] = images+image_off;
+  }
+  for (size_t i = 0; i < anim_count; ++i) {
+    size_t count = anims[i].image_count;
+    for (size_t j = 0; j < count; ++j, ++image_off) {
+      image_buffer[anim_count] = anims[i].images+j;
+    }
+  }
+
+  chima_sprite* sprites = CHIMA_MALLOC(chima, image_count*sizeof(chima_sprite));
+  if (!sprites) {
+    CHIMA_FREE(chima, image_buffer);
+    return CHIMA_ALLOC_FAILURE;
+  }
+  memset(sprites, 0, image_count*sizeof(chima_sprite));
+
+
+  memset(sheet, 0, sizeof(chima_spritesheet));
+  chima_return ret = chima_create_atlas_image(chima, &sheet->atlas, 
+                                              sprites, image_buffer, total_images);
+  CHIMA_FREE(chima, image_buffer);
+  if (!ret) {
+    CHIMA_FREE(chima, sprites);
+    return ret;
+  }
+
+  chima_sprite_anim* sprite_anims = CHIMA_MALLOC(chima, anim_count*sizeof(chima_sprite_anim));
+  if (!anims) {
+    CHIMA_FREE(chima, sprites);
+    return CHIMA_ALLOC_FAILURE;
+  }
+  memset(sprite_anims, 0, anim_count*sizeof(chima_sprite_anim));
+  sheet->asset_type = CHIMA_ASSET_SPRITESHEET;
+  sheet->sprite_count = image_count;
+  sheet->anim_count = anim_count;
+  sheet->anims = sprite_anims;
+  sheet->sprites = sprites;
+
+  return CHIMA_NO_ERROR;
+}
 
 typedef struct chima_file_header {
   uint8_t magic[12];
@@ -541,6 +616,20 @@ typedef struct chima_file_anim {
 } chima_file_anim;
 CHIMA_STATIC_ASSERT(sizeof(chima_file_anim) == 20);
 
+chima_return chima_load_spritesheet(chima_context chima, const char* path,
+                                    chima_spritesheet* sheet)
+{
+  return CHIMA_NO_ERROR;
+}
+
+chima_return chima_write_spritesheet(chima_context chima, const char* path,
+                                     const chima_spritesheet* sheet, size_t* nwritten,
+                                     chima_image_format atlas_format)
+{
+
+  return CHIMA_NO_ERROR;
+}
+
 int main() {
   chima_context chima;
   chima_create_context(&chima, NULL);
@@ -551,12 +640,12 @@ int main() {
   color.b = 1.f;
   color.a = 1.f;
   chima_image dst;
-  uint32_t ret = chima_create_image(chima, &dst, 1024, 1024, 4, color);
+  uint32_t ret = chima_create_image(chima, &dst, 1024, 1024, 4, color, "base");
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
   chima_anim cino;
-  ret = chima_load_anim(chima, "res/cino.gif", &cino, 0);
+  ret = chima_load_anim(chima, "res/cino.gif", &cino, "cino", 0);
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
@@ -564,17 +653,17 @@ int main() {
   color.g = 0.f;
   color.b = 0.f;
   color.a = .5f;
-  ret = chima_create_image(chima, &src, 512, 512, 4, color);
+  ret = chima_create_image(chima, &src, 512, 512, 4, color, "red");
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
   chima_image chimata;
-  ret = chima_load_image(chima, "res/chimata.png", &chimata, 0);
+  ret = chima_load_image(chima, "res/chimata.png", &chimata, "chimata", 0);
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
   chima_image marisa;
-  ret = chima_load_image(chima, "res/marisa_emacs.png", &marisa, 0);
+  ret = chima_load_image(chima, "res/marisa_emacs.png", &marisa, "marisa", 0);
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
@@ -587,6 +676,10 @@ int main() {
   assert(ret == CHIMA_NO_ERROR);
 
   ret = chima_composite_image(&dst, &marisa, chimata.width/2, 0);
+  printf("%s\n", chima_error_string(ret));
+  assert(ret == CHIMA_NO_ERROR);
+
+  ret = chima_composite_image(&dst, &cino.images[0], chimata.width+100, 0);
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
