@@ -270,7 +270,7 @@ STBRP_DEF void stbrp_init_target(stbrp_context *context, int width, int height, 
    nodes[i].next = NULL;
    context->init_mode = STBRP__INIT_skyline;
    context->heuristic = STBRP_HEURISTIC_Skyline_default;
-   context->free_head = &nodes[0];
+   context->free_head = nodes;
    context->active_head = &context->extra[0];
    context->width = width;
    context->height = height;

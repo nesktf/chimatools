@@ -32,6 +32,7 @@ typedef enum chima_return {
   CHIMA_IMAGE_PARSE_FAILURE,
   CHIMA_INVALID_VALUE,
   CHIMA_INVALID_FORMAT,
+  CHIMA_PACKING_FAILED,
   CHIMA_RETURN_COUNT,
 
   _CHIMA_RETURN_FORCE_32BIT = 0x7fffffff,
@@ -64,6 +65,7 @@ typedef enum chima_image_depth {
 
 typedef struct chima_anim chima_anim;
 typedef struct chima_image {
+  chima_context ctx;
   chima_string name;
   uint32_t width;
   uint32_t height;
@@ -88,12 +90,13 @@ CHIMADEF chima_return chima_write_image(chima_context chima,
                                         const chima_image* image, const char* path,
                                         chima_image_format format);
 
-CHIMADEF void chima_destroy_image(chima_context chima, chima_image* image);
+CHIMADEF void chima_destroy_image(chima_image* image);
 
 CHIMADEF chima_return chima_composite_image(chima_image* dst, const chima_image* src,
                                             uint32_t y, uint32_t x);
 
 typedef struct chima_anim {
+  chima_context ctx;
   chima_string name;
   chima_image* images;
   size_t image_count;
@@ -103,7 +106,7 @@ typedef struct chima_anim {
 CHIMADEF chima_return chima_load_anim(chima_context chima, const char* path,
                                       chima_anim* anim, const char* name, chima_bool flip_y);
 
-CHIMADEF void chima_destroy_anim(chima_context chima, chima_anim* anim);
+CHIMADEF void chima_destroy_anim(chima_anim* anim);
 
 typedef enum chima_asset_type {
   CHIMA_ASSET_INVALID = 0,
@@ -128,13 +131,14 @@ typedef struct chima_sprite {
 
 typedef struct chima_sprite_anim {
   chima_string name;
-  size_t* sprite_indices;
+  uint32_t* sprite_indices;
   size_t sprite_count;
   float fps;
 } chima_sprite_anim;
 
 typedef struct chima_spritesheet {
   chima_asset_type asset_type;
+  chima_context ctx;
   chima_image atlas;
   chima_sprite* sprites;
   uint32_t sprite_count;
@@ -144,12 +148,13 @@ typedef struct chima_spritesheet {
 
 CHIMADEF chima_return chima_create_atlas_image(chima_context chima,
                                                chima_image* atlas, chima_sprite* sprites,
+                                               uint32_t initial_sz, chima_color background,
                                                const chima_image** images, size_t image_count);
 
-CHIMADEF chima_return chima_build_spritesheet(chima_context chima,
-                                              chima_spritesheet* sheet,
-                                              const chima_image* images, size_t image_count,
-                                              const chima_anim* anims, size_t anim_count);
+CHIMADEF chima_return chima_create_spritesheet(chima_context chima, chima_spritesheet* sheet,
+                                               uint32_t initial_sz, chima_color background,
+                                               const chima_image* images, size_t image_count,
+                                               const chima_anim* anims, size_t anim_count);
 
 CHIMADEF chima_return chima_load_spritesheet(chima_context chima, const char* path,
                                              chima_spritesheet* sheet);
