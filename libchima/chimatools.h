@@ -5,6 +5,7 @@
 #define CHIMA_STRING_MAX_SIZE 1024
 #define CHIMA_TRUE 1
 #define CHIMA_FALSE 0
+#define CHIMA_ARR_SZ(arr) sizeof(arr)/sizeof(arr[0])
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,6 +30,7 @@ typedef enum chima_return {
   CHIMA_ALLOC_FAILURE,
   CHIMA_FILE_OPEN_FAILURE,
   CHIMA_FILE_WRITE_FAILURE,
+  CHIMA_FILE_EOF,
   CHIMA_IMAGE_PARSE_FAILURE,
   CHIMA_INVALID_VALUE,
   CHIMA_INVALID_FORMAT,

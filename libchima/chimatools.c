@@ -21,8 +21,6 @@
 #define ATLAS_GROW_FAC 2.f
 #define ATLAS_NAME "atlas"
 
-#define ARR_SZ(arr) sizeof(arr)/sizeof(arr[0])
-
 static const char CHIMA_MAGIC[] =
   { 89, 'C', 'H', 'I', 'M', 'A', '.', 'A', 'S', 'S', 'E', 'T'};
 
@@ -122,6 +120,7 @@ const char* chima_error_string(chima_return ret) {
     case CHIMA_INVALID_FORMAT: return "Invalid image format";
     case CHIMA_IMAGE_PARSE_FAILURE: return "Failed to parse image";
     case CHIMA_PACKING_FAILED: return "Sprite packing failed";
+    case CHIMA_FILE_EOF: return "Early end of file";
     default: return "";
   }
 }
@@ -155,7 +154,7 @@ chima_image_format chima_set_sheet_format(chima_context chima, chima_image_forma
   return r;
 }
 
-CHIMADEF chima_return chima_set_sheet_name(chima_context chima, const char* name) {
+chima_return chima_set_sheet_name(chima_context chima, const char* name) {
   int len = strlen(name);
   if (len > CHIMA_STRING_MAX_SIZE){
     return CHIMA_INVALID_VALUE;
@@ -622,7 +621,9 @@ copy_texels:
   ;
   chima_return ret = chima_create_image(chima, atlas, atlas_size, atlas_size, 4,
                                         chima->atlas_color, chima->atlas_name.data);
-  assert(ret == CHIMA_NO_ERROR);
+  if (!ret) {
+    return ret;
+  }
   for (size_t i = 0; i < image_count; ++i) {
     // Writting directly to the chima_sprites **should** be fine. Will need some tests
     // Copy in case we overlap with the stbrp_rect data in the last chima_sprite
@@ -666,7 +667,9 @@ chima_return chima_create_spritesheet(chima_context chima,
   }
 
   const chima_image** tmp_images = CHIMA_MALLOC(chima, total_images*sizeof(const chima_image*));
-  assert(tmp_images);
+  if (!tmp_images) {
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(tmp_images, 0, total_images*sizeof(const chima_image*));
 
   size_t image_off = 0;
@@ -681,17 +684,15 @@ chima_return chima_create_spritesheet(chima_context chima,
   }
 
   chima_sprite_anim* sprite_anims = CHIMA_MALLOC(chima, anim_count*sizeof(chima_sprite_anim));
-  assert(sprite_anims);
+  if (!sprite_anims) {
+    CHIMA_FREE(chima, tmp_images);
+    return CHIMA_ALLOC_FAILURE;
+  }
   image_off = image_count;
   memset(sprite_anims, 0, anim_count*sizeof(chima_sprite_anim));
   for (size_t i = 0; i < anim_count; ++i) {
     size_t count = anims[i].image_count;
     sprite_anims[i].sprite_idx = image_off;
-    // sprite_anims[i].sprite_indices = CHIMA_MALLOC(chima, count*sizeof(uint32_t));
-    // assert(sprite_anims[i].sprite_indices);;
-    // for (size_t j = 0; j < count; ++j, ++image_off) {
-    //   sprite_anims[i].sprite_indices[j] = image_off;
-    // }
     image_off += count;
     sprite_anims[i].sprite_count = count;
     sprite_anims[i].fps = anims[i].fps;
@@ -700,12 +701,21 @@ chima_return chima_create_spritesheet(chima_context chima,
   }
 
   chima_sprite* sprites = CHIMA_MALLOC(chima, total_images*sizeof(chima_sprite));
-  assert(sprites);
+  if (!sprites) {
+    CHIMA_FREE(chima, tmp_images);
+    CHIMA_FREE(chima, sprite_anims);
+    return CHIMA_ALLOC_FAILURE;
+  }
 
   memset(sheet, 0, sizeof(chima_spritesheet));
   chima_return ret = chima_create_atlas_image(chima, &sheet->atlas, sprites, pad,
                                               tmp_images, total_images);
-  assert(ret == CHIMA_NO_ERROR);
+  if (ret != CHIMA_NO_ERROR) {
+    CHIMA_FREE(chima, tmp_images);
+    CHIMA_FREE(chima, sprite_anims);
+    CHIMA_FREE(chima, sprites);
+    return ret;
+  }
 
   sheet->asset_type = CHIMA_ASSET_SPRITESHEET;
   sheet->sprite_count = total_images;
@@ -770,6 +780,10 @@ typedef struct chima_file_anim {
 chima_return chima_load_spritesheet(chima_context chima, const char* path,
                                     chima_spritesheet* sheet)
 {
+  if (!path){
+    return CHIMA_INVALID_VALUE;
+  }
+
   FILE* f = fopen(path, "rb");
   if (!f) {
     return CHIMA_FILE_OPEN_FAILURE;
@@ -783,23 +797,18 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
   memset(&header, 0, sizeof(header));
   int read = fread(&header, sizeof(header), 1, f);
   if (read < 1) {
-    printf("0 %i\n", read);
     return CHIMA_INVALID_FORMAT;
   }
   if (strncmp((char*)header.magic, CHIMA_MAGIC, sizeof(CHIMA_MAGIC))) {
-    printf("1 %s\n", (char*)header.magic);
     return CHIMA_INVALID_FORMAT;
   }
   if (header.file_enum != CHIMA_ASSET_SPRITESHEET){
-    printf("2\n");
     return CHIMA_INVALID_FORMAT;
   }
   if (header.ver_maj != CHIMA_SHEET_MAJ) {
-    printf("3\n");
     return CHIMA_INVALID_FORMAT;
   }
   if (header.ver_min != CHIMA_SHEET_MIN) {
-    printf("4\n");
     return CHIMA_INVALID_FORMAT;
   }
 
@@ -807,33 +816,72 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
   size_t read_offset = sizeof(header);
   size_t read_len = header.sprite_count*sizeof(chima_file_sprite);
   chima_file_sprite* fsprites = CHIMA_MALLOC(chima, read_len);
-  assert(fsprites);
+  if (!fsprites) {
+    fclose(f);
+    return CHIMA_ALLOC_FAILURE;
+  }
   read = fread(fsprites, sizeof(fsprites[0]), header.sprite_count, f);
-  assert(read == header.sprite_count);
+  if (read != header.sprite_count) {
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_FILE_EOF;
+  }
   read_offset += read_len;
 
   read_len = header.anim_count*sizeof(chima_file_anim);
   chima_file_anim* fanims = CHIMA_MALLOC(chima, read_len);
-  assert(fanims);
+  if (!fanims) {
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_ALLOC_FAILURE;
+  }
   read = fread(fanims, sizeof(fanims[0]), header.anim_count, f);
-  assert(read == header.anim_count);
+  if (read != header.anim_count) {
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_FILE_EOF;
+  }
   read_offset += read_len;
 
   read_len = header.name_size;
   char* fnames = CHIMA_MALLOC(chima, read_len);
-  assert(fnames);
+  if (!fnames){
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_ALLOC_FAILURE;
+  }
   read = fread(fnames, sizeof(fnames[0]), header.name_size, f);
-  assert(read == read_len);
+  if (read != read_len) {
+    CHIMA_FREE(chima, fnames);
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_FILE_EOF;
+  }
   read_offset += read_len;
 
   read_len = file_sz - read_offset;
   void* image_data = CHIMA_MALLOC(chima, read_len);
-  assert(image_data);
+  if (!image_data) {
+    CHIMA_FREE(chima, fnames);
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    fclose(f);
+    return CHIMA_ALLOC_FAILURE;
+  }
   read = fread(image_data, 1, file_sz, f);
   assert(read == read_len);
+  fclose(f);
 
   chima_sprite* sprites = CHIMA_MALLOC(chima, header.sprite_count*sizeof(chima_sprite));
-  assert(sprites);
+  if (!sprites) {
+    CHIMA_FREE(chima, fnames);
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(sprites, 0, header.sprite_count*sizeof(sprites[0]));
   for (size_t i = 0; i < header.sprite_count; ++i) {
     const chima_file_sprite* s = &fsprites[i];
@@ -850,7 +898,13 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
   }
 
   chima_sprite_anim* anims = CHIMA_MALLOC(chima, header.anim_count*sizeof(chima_sprite_anim));
-  assert(anims);
+  if (!anims) {
+    CHIMA_FREE(chima, sprites);
+    CHIMA_FREE(chima, fnames);
+    CHIMA_FREE(chima, fanims);
+    CHIMA_FREE(chima, fsprites);
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(anims, 0, header.anim_count*sizeof(anims[0]));
   for (size_t i = 0; i < header.anim_count; ++i){
     const chima_file_anim* a = &fanims[i];
@@ -878,11 +932,16 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
     memcpy(sheet->atlas.name.data, ATLAS_NAME, sizeof(ATLAS_NAME));
     sheet->atlas.name.length = sizeof(ATLAS_NAME);
   } else {
-    uint32_t ret = chima_load_image_mem(chima, &sheet->atlas, chima->atlas_name.data,
-                                        (uint8_t*)image_data, read_len);
-    printf("%s\n", chima_error_string(ret));
-    assert(ret == CHIMA_NO_ERROR);
+    chima_return ret = chima_load_image_mem(chima, &sheet->atlas, chima->atlas_name.data,
+                                           (uint8_t*)image_data, read_len);
     CHIMA_FREE(chima, image_data);
+    if (ret != CHIMA_NO_ERROR) {
+      CHIMA_FREE(chima, sprites);
+      CHIMA_FREE(chima, fnames);
+      CHIMA_FREE(chima, fanims);
+      CHIMA_FREE(chima, fsprites);
+      return ret;
+    }
   }
   sheet->ctx = chima;
 
@@ -896,6 +955,14 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
 chima_return chima_write_spritesheet(chima_context chima, const char* path,
                                      const chima_spritesheet* sheet)
 {
+  // TODO: Support more depths
+  if (sheet->atlas.depth == CHIMA_DEPTH_8U) {
+    return CHIMA_INVALID_FORMAT;
+  }
+  if (!sheet || !path) {
+    return CHIMA_INVALID_VALUE;
+  }
+
   size_t name_size = 0;
   size_t sprite_count = sheet->sprite_count;
   size_t anim_count = sheet->anim_count;
@@ -905,9 +972,6 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
   for (size_t i = 0; i < anim_count; ++i){
     name_size += sheet->anims[i].name.length;
   }
-
-  // TODO: Support more depths
-  assert(sheet->atlas.depth == CHIMA_DEPTH_8U);
 
   chima_sprite_file_header header;
   memset(&header, 0, sizeof(chima_sprite_file_header));
@@ -950,7 +1014,9 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
     anim_count*sizeof(chima_file_anim);
 
   chima_file_sprite* sprites = CHIMA_MALLOC(chima, sprite_count*sizeof(chima_file_sprite));
-  assert(sprites);
+  if (!sprites) {
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(sprites, 0, sprite_count*sizeof(chima_file_sprite));
   size_t name_pos = 0;
   for (size_t i = 0; i < sprite_count; ++i) {
@@ -969,7 +1035,10 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
   }
 
   chima_file_anim* anims = CHIMA_MALLOC(chima, anim_count*sizeof(chima_file_anim));
-  assert(anims);
+  if (!anims) {
+    CHIMA_FREE(chima, sprites);
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(anims, 0, anim_count*sizeof(chima_file_anim));
   for (size_t i = 0; i < anim_count; ++i) {
     const chima_sprite_anim* a = &sheet->anims[i];
@@ -982,7 +1051,11 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
   }
 
   char* name_data = CHIMA_MALLOC(chima, name_size);
-  assert(name_data);
+  if (!name_data) {
+    CHIMA_FREE(chima, sprites);
+    CHIMA_FREE(chima, anims);
+    return CHIMA_ALLOC_FAILURE;
+  }
   memset(name_data, 0, name_size);
   {
     size_t name_off = 0;
@@ -1002,7 +1075,12 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
   header.image_offset = name_offset+name_size;
 
   FILE* f = fopen(path, "wb");
-  assert(f);
+  if (!f) {
+    CHIMA_FREE(chima, name_data);
+    CHIMA_FREE(chima, sprites);
+    CHIMA_FREE(chima, anims);
+    return CHIMA_ALLOC_FAILURE;
+  }
   fwrite(&header, sizeof(header), 1, f);
   fwrite(sprites, sizeof(sprites[0]), sprite_count, f);
   fwrite(anims, sizeof(anims[0]), anim_count, f);
@@ -1038,63 +1116,3 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
   CHIMA_FREE(chima, sprites);
   return CHIMA_NO_ERROR;
 }
-
-int main() {
-  chima_context chima;
-  chima_create_context(&chima, NULL);
-
-  uint32_t ret;
-  chima_image images[2];
-  chima_anim anims[4];
-
-  ret = chima_load_image(chima, images, "chimata", "res/chimata.png");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  ret = chima_load_image(chima, images+1, "marisa", "res/marisa_emacs.png");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  ret = chima_load_anim(chima, anims, "cino", "res/cino.gif");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  ret = chima_load_anim(chima, anims+1, "mari_ass", "res/mariass.gif");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  ret = chima_load_anim(chima, anims+2, "honk", "res/honk.gif");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  chima_load_anim(chima, anims+3, "rin_dance", "res/rin.gif");
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-
-  chima_spritesheet sheet;
-  chima_set_sheet_initial(chima, 2304);
-  chima_create_spritesheet(chima, &sheet, 5,
-                           images, ARR_SZ(images), anims, ARR_SZ(anims));
-
-  const char atlas_path[] = "res/chima_test.png";
-  printf("Writting atlas to %s\n", atlas_path);
-  chima_set_sheet_format(chima, CHIMA_FORMAT_PNG);
-  chima_write_spritesheet(chima, "res/chimaout.chima", &sheet);
-
-  chima_spritesheet readsheet;
-  ret = chima_load_spritesheet(chima, "res/chimaout.chima", &readsheet);
-  printf("%s\n", chima_error_string(ret));
-  assert(ret == CHIMA_NO_ERROR);
-  // chima_write_image(chima, &sheet.atlas, atlas_path, CHIMA_FORMAT_PNG);
-
-  for (size_t i = 0; i < ARR_SZ(images); ++i){
-    chima_destroy_image(images+i);
-  }
-  for (size_t i = 0; i < ARR_SZ(anims); ++i) {
-    chima_destroy_anim(anims+i);
-  }
-  chima_destroy_spritesheet(&sheet);
-
-  chima_destroy_context(chima);
-}
-
