@@ -144,8 +144,8 @@ typedef struct chima_sprite {
 } chima_sprite;
 
 typedef struct chima_sprite_anim {
-  uint32_t* sprite_indices;
-  size_t sprite_count;
+  uint32_t sprite_idx;
+  uint32_t sprite_count;
   float fps;
   chima_string name;
 } chima_sprite_anim;

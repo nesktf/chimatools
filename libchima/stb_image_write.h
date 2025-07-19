@@ -341,6 +341,11 @@ static int stbi__start_write_file(stbi__write_context *s, const char *filename)
    return f != NULL;
 }
 
+static int stbi__append_write_file(stbi__write_context *s, FILE* f) {
+  stbi__start_write_callbacks(s, stbi__stdio_write, (void*)f);
+  return f != NULL;
+}
+
 static void stbi__end_write_file(stbi__write_context *s)
 {
    fclose((FILE *)s->context);
@@ -532,6 +537,14 @@ STBIWDEF int stbi_write_bmp(char const *filename, int x, int y, int comp, const 
    } else
       return 0;
 }
+STBIWDEF int stbi_write_bmp_file(FILE* f, int x, int y, int comp, const void* data) {
+   stbi__write_context s = { 0 };
+   if (stbi__append_write_file(&s,f)) {
+      int r = stbi_write_bmp_core(&s, x, y, comp, data);
+      return r;
+   } else
+      return 0;
+}
 #endif //!STBI_WRITE_NO_STDIO
 
 static int stbi_write_tga_core(stbi__write_context *s, int x, int y, int comp, void *data)
@@ -627,6 +640,16 @@ STBIWDEF int stbi_write_tga(char const *filename, int x, int y, int comp, const 
    if (stbi__start_write_file(&s,filename)) {
       int r = stbi_write_tga_core(&s, x, y, comp, (void *) data);
       stbi__end_write_file(&s);
+      return r;
+   } else
+      return 0;
+}
+
+STBIWDEF int stbi_write_tga_file(FILE* f, int x, int y, int comp, const void *data)
+{
+   stbi__write_context s = { 0 };
+   if (stbi__append_write_file(&s,f)) {
+      int r = stbi_write_tga_core(&s, x, y, comp, (void *) data);
       return r;
    } else
       return 0;
@@ -1232,6 +1255,19 @@ STBIWDEF int stbi_write_png(const chima_alloc* al, char const *filename, int x, 
   al->free(al->user_data, png);
    return 1;
 }
+
+STBIWDEF int stbi_write_png_file(const chima_alloc* al, FILE* f, int x, int y, int comp, const void *data, int stride_bytes)
+{
+   int len;
+   unsigned char *png = stbi_write_png_to_mem(al, (const unsigned char *) data, stride_bytes, x, y, comp, &len);
+   if (png == NULL) return 0;
+
+   if (!f) { al->free(al->user_data, png); return 0; }
+   fwrite(png, 1, len, f);
+  al->free(al->user_data, png);
+   return 1;
+}
+
 #endif
 
 // STBIWDEF int stbi_write_png_to_func(stbi_write_func *func, void *context, int x, int y, int comp, const void *data, int stride_bytes)
