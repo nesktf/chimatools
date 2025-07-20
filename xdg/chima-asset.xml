@@ -4,7 +4,7 @@
     <comment>Chima asset file</comment>
     <comment xml:lang="es">Archivo de recursos Chima</comment>
     <magic priority="50">
-      <match type="string" value="\0x89CHIMA\0x89ASSET" offset="0"/>
+      <match type="string" value="\x89CHIMA\x89ASSET" offset="0"/>
     </magic>
     <glob pattern="*.chima"/>
   </mime-type>

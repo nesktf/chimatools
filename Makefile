@@ -42,7 +42,7 @@ install: lib
 	cp $(LIB_INCL) /usr/include/chimatools/
 	cp $(LIB_SO) /usr/lib/x86_64-linux-gnu/
 	cp $(MIME_XML) /usr/share/mime/packages/
-	update-mime-database /usr/shader/mime/
+	update-mime-database /usr/share/mime/
 
 lib: $(LIB_SO)
 
