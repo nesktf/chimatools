@@ -22,7 +22,7 @@
 #define ATLAS_NAME "atlas"
 
 static const char CHIMA_MAGIC[] =
-  { 89, 'C', 'H', 'I', 'M', 'A', '.', 'A', 'S', 'S', 'E', 'T'};
+  { 0x89, 'C', 'H', 'I', 'M', 'A', 0x89, 'A', 'S', 'S', 'E', 'T'};
 
 // TODO: Add a scratch arena
 typedef struct chima_context_ {
@@ -301,9 +301,9 @@ chima_return chima_load_image(chima_context chima, chima_image* image,
   int req_comp = 0;
   void* result = NULL;
 
-  uint32_t ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
+  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
   fclose(f);
-  if (ret) {
+  if (ret != CHIMA_NO_ERROR) {
     return ret;
   }
 
@@ -344,8 +344,8 @@ chima_return chima_load_image_mem(chima_context chima,
   int req_comp = 0;
   void* result = NULL;
 
-  uint32_t ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
-  if (ret) {
+  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
+  if (ret != CHIMA_NO_ERROR) {
     return ret;
   }
 
@@ -362,14 +362,14 @@ chima_return chima_load_image_mem(chima_context chima,
   return CHIMA_NO_ERROR;
 }
 
-chima_return chima_write_image(chima_context chima, const chima_image* image, const char* path,
+chima_return chima_write_image(const chima_image* image, const char* path,
                                chima_image_format format)
 {
   size_t st = image->width*image->channels;
   int wrt;
   switch (format) {
     case CHIMA_FORMAT_PNG: {
-      wrt = stbi_write_png(&chima->alloc,
+      wrt = stbi_write_png(&image->ctx->alloc,
                            path, image->width, image->height, image->channels, image->data, st);
       break;
     }
@@ -621,7 +621,7 @@ copy_texels:
   ;
   chima_return ret = chima_create_image(chima, atlas, atlas_size, atlas_size, 4,
                                         chima->atlas_color, chima->atlas_name.data);
-  if (!ret) {
+  if (ret != CHIMA_NO_ERROR) {
     return ret;
   }
   for (size_t i = 0; i < image_count; ++i) {
@@ -777,8 +777,8 @@ typedef struct chima_file_anim {
   float fps;
 } chima_file_anim;
 
-chima_return chima_load_spritesheet(chima_context chima, const char* path,
-                                    chima_spritesheet* sheet)
+chima_return chima_load_spritesheet(chima_context chima,
+                                    chima_spritesheet* sheet, const char* path)
 {
   if (!path){
     return CHIMA_INVALID_VALUE;
@@ -952,17 +952,18 @@ chima_return chima_load_spritesheet(chima_context chima, const char* path,
   return CHIMA_NO_ERROR;
 }
 
-chima_return chima_write_spritesheet(chima_context chima, const char* path,
-                                     const chima_spritesheet* sheet)
+chima_return chima_write_spritesheet(const chima_spritesheet* sheet,
+                                     const char* path)
 {
   // TODO: Support more depths
-  if (sheet->atlas.depth == CHIMA_DEPTH_8U) {
+  if (sheet->atlas.depth != CHIMA_DEPTH_8U) {
     return CHIMA_INVALID_FORMAT;
   }
   if (!sheet || !path) {
     return CHIMA_INVALID_VALUE;
   }
 
+  chima_context chima = sheet->ctx;
   size_t name_size = 0;
   size_t sprite_count = sheet->sprite_count;
   size_t anim_count = sheet->anim_count;
@@ -1079,7 +1080,7 @@ chima_return chima_write_spritesheet(chima_context chima, const char* path,
     CHIMA_FREE(chima, name_data);
     CHIMA_FREE(chima, sprites);
     CHIMA_FREE(chima, anims);
-    return CHIMA_ALLOC_FAILURE;
+    return CHIMA_FILE_OPEN_FAILURE;
   }
   fwrite(&header, sizeof(header), 1, f);
   fwrite(sprites, sizeof(sprites[0]), sprite_count, f);

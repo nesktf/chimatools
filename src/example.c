@@ -36,22 +36,26 @@ int main() {
 
   chima_spritesheet sheet;
   chima_set_sheet_initial(chima, 2304);
-  chima_create_spritesheet(chima, &sheet, 5,
-                           images, CHIMA_ARR_SZ(images), anims, CHIMA_ARR_SZ(anims));
+  ret = chima_create_spritesheet(chima, &sheet, 5,
+                                 images, CHIMA_ARR_SZ(images), anims, CHIMA_ARR_SZ(anims));
+  printf("%s\n", chima_error_string(ret));
+  assert(ret == CHIMA_NO_ERROR);
 
   const char asset_path[] = "res/chimaout.chima";
   printf("Writting sheet to %s\n", asset_path);
   chima_set_sheet_format(chima, CHIMA_FORMAT_PNG);
-  chima_write_spritesheet(chima, asset_path, &sheet);
+  ret = chima_write_spritesheet(&sheet, asset_path);
+  printf("%s\n", chima_error_string(ret));
+  assert(ret == CHIMA_NO_ERROR);
 
   chima_spritesheet readsheet;
-  ret = chima_load_spritesheet(chima, "res/chimaout.chima", &readsheet);
+  ret = chima_load_spritesheet(chima, &readsheet, "res/chimaout.chima");
   printf("%s\n", chima_error_string(ret));
   assert(ret == CHIMA_NO_ERROR);
 
   const char atlas_path[] = "res/chima_test.png";
   printf("Writting atlas to %s\n", atlas_path);
-  chima_write_image(chima, &readsheet.atlas, atlas_path, CHIMA_FORMAT_PNG);
+  chima_write_image(&readsheet.atlas, atlas_path, CHIMA_FORMAT_PNG);
 
   for (size_t i = 0; i < CHIMA_ARR_SZ(images); ++i){
     chima_destroy_image(images+i);

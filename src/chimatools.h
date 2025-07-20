@@ -2,7 +2,7 @@
 
 #include "chima_common.h"
 #define CHIMADEF extern
-#define CHIMA_STRING_MAX_SIZE 1024
+#define CHIMA_STRING_MAX_SIZE 256
 #define CHIMA_TRUE 1
 #define CHIMA_FALSE 0
 #define CHIMA_ARR_SZ(arr) sizeof(arr)/sizeof(arr[0])
@@ -101,8 +101,7 @@ CHIMADEF chima_return chima_load_image_mem(chima_context chima,
                                            chima_image* image, const char* name,
                                            const uint8_t* buffer, size_t len);
 
-CHIMADEF chima_return chima_write_image(chima_context chima,
-                                        const chima_image* image, const char* path,
+CHIMADEF chima_return chima_write_image(const chima_image* image, const char* path,
                                         chima_image_format format);
 
 CHIMADEF void chima_destroy_image(chima_image* image);
@@ -171,11 +170,10 @@ CHIMADEF chima_return chima_create_spritesheet(chima_context chima,
                                                const chima_image* images, size_t image_count,
                                                const chima_anim* anims, size_t anim_count);
 
-CHIMADEF chima_return chima_load_spritesheet(chima_context chima, const char* path,
-                                             chima_spritesheet* sheet);
+CHIMADEF chima_return chima_load_spritesheet(chima_context chima, chima_spritesheet* sheet,
+                                             const char* path);
 
-CHIMADEF chima_return chima_write_spritesheet(chima_context chima, const char* path,
-                                              const chima_spritesheet* sheet);
+CHIMADEF chima_return chima_write_spritesheet(const chima_spritesheet* sheet, const char* path);
 
 CHIMADEF void chima_destroy_spritesheet(chima_spritesheet* sheet);
 
