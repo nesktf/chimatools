@@ -702,14 +702,14 @@ copy_texels:
      * (0,sz);(0,1)                                      (sz,sz);(1,1)
     */
     float uv_scale_x = (flip_x*-1.f + !flip_x*1.f)*(float)w/(float)atlas_size;
-    float uv_off_x = (float)x/(float)atlas_size;
+    float uv_off_x = (float)(x+w)/(float)atlas_size;
     sprites[i].uv_x_lin = uv_scale_x;
     sprites[i].uv_x_con = flip_x*(1.f-uv_off_x) + !flip_x*uv_off_x;
 
     float uv_scale_y = (flip_y*-1.f + !flip_y*1.f)*(float)h/(float)atlas_size;
-    float uv_off_y = (float)y/(float)atlas_size;
+    float uv_off_y = (float)(y+h)/(float)atlas_size;
     sprites[i].uv_y_lin = uv_scale_y;
-    sprites[i].uv_x_con = flip_y*(1.f-uv_off_y) + !flip_y*uv_off_y;
+    sprites[i].uv_y_con = flip_y*(1.f-uv_off_y) + !flip_y*uv_off_y;
 
     chima_composite_image(atlas, images[i], x, y);
   }

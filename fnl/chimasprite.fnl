@@ -20,6 +20,20 @@
     {: chima-images : chima-anims}))
 
 (let [{: chima-images : chima-anims} (chima-parse)
-      chima-sheet (chima.spritesheet.new ctx 0 chima-images chima-anims)]
-  (chima-sheet.atlas:write "test.png" chima.image.format.png)
-  (chima-sheet:write "test.chima"))
+      chima-sheet (chima.spritesheet.new ctx 0 chima-images chima-anims)
+      sheet-sz (tonumber chima-sheet.atlas.width)
+      sprite-count (tonumber chima-sheet.sprite_count)]
+  (print (string.format "SIZE: %dx%d" sheet-sz sheet-sz))
+  (for [i 0 (- sprite-count 1)]
+    (let [sprite (. chima-sheet.sprites i)
+          name (tostring sprite.name)
+          x (tonumber sprite.x_off)
+          y (tonumber sprite.y_off)
+          w (tonumber sprite.width)
+          h (tonumber sprite.height)
+          uv_y_lin (tonumber sprite.uv_y_lin)
+          uv_x_lin (tonumber sprite.uv_x_lin)
+          uv_y_con (tonumber sprite.uv_y_con)
+          uv_x_con (tonumber sprite.uv_x_con)]
+      (print (string.format "- %s: (%dx%d),(%d,%d) -> (%f + %f, %f + %f)" name
+                            w h x y uv_x_lin uv_x_con uv_y_lin uv_y_con)))))

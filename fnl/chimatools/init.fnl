@@ -3,6 +3,7 @@
 (local sprite (require :chimatools.sprite))
 
 (local color-mt {})
+(set color-mt.__index color-mt)
 (local color-ctype (ffi.metatype :chima_color color-mt))
 (local color {:_ctype color-ctype
               :new (fn [r g b a]
@@ -12,6 +13,22 @@
                        (set (. col :b) (or b 0))
                        (set (. col :a) (or a 0))
                        col))})
+
+(local max-str-sz 256)
+(local str-mt {:__tostring (fn [self]
+                             (ffi.string self.data self.length))})
+
+(set str-mt.__index str-mt)
+(local str-ctype (ffi.metatype :chima_string str-mt))
+(local str {:_ctype str-ctype
+            :new (fn [luastr]
+                   (let [strsz (length luastr)]
+                     (if (<= strsz max-str-sz)
+                         (let [out (ffi.new str-ctype)]
+                           (ffi.copy out.data luastr)
+                           (set out.length strsz)
+                           out)
+                         (values nil "String is too big"))))})
 
 (local chima-context-mt
        {:set_atlas_factor (fn [self factor]
@@ -48,8 +65,10 @@
 
 {:context chima-context
  : color
+ :string str
  :image sprite.image
  :anim sprite.anim
  :sprite sprite.sprite
  :spritesheet sprite.spritesheet
- :sprite_anim sprite.sprite_anim}
+ :sprite_anim sprite.sprite_anim
+ :_lib lib}
