@@ -1,6 +1,13 @@
 #pragma once
 
-#include "chima_common.h"
+#ifdef __cplusplus
+#include <cstdint>
+#include <cstddef>
+#else
+#include <stdint.h>
+#include <stddef.h>
+#endif
+
 #define CHIMADEF extern
 #define CHIMA_STRING_MAX_SIZE 256
 #define CHIMA_TRUE 1
@@ -10,6 +17,17 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef void* (*PFN_chima_malloc)(void* user, size_t size);
+typedef void* (*PFN_chima_realloc)(void* user, void* ptr, size_t oldsz, size_t newsz);
+typedef void (*PFN_chima_free)(void* user, void* ptr);
+
+typedef struct chima_alloc {
+  void* user_data;
+  PFN_chima_malloc malloc;
+  PFN_chima_realloc realloc;
+  PFN_chima_free free;
+} chima_alloc;
 
 struct chima_context_;
 typedef struct chima_context_ *chima_context;

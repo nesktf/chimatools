@@ -1,6 +1,3 @@
-#define STB_RECT_PACK_IMPLEMENTATION
-#define STBRP_STATIC
-
 // stb_rect_pack.h - v1.01 - public domain - rectangle packing
 // Sean Barrett 2014
 //

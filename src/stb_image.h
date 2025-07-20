@@ -1,13 +1,4 @@
-#include "chima_common.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_STATIC
-#define STBI_NO_FAILURE_STRINGS
-#define STBI_ONLY_PNG
-#define STBI_ONLY_JPEG
-#define STBI_ONLY_BMP
-#define STBI_ONLY_GIF
-
+#include "chimatools.h"
 /* stb_image - v2.30 - public domain image loader - http://nothings.org/stb
                                   no warranty implied; use at your own risk
 
