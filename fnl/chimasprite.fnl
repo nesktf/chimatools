@@ -36,4 +36,5 @@
           uv_y_con (tonumber sprite.uv_y_con)
           uv_x_con (tonumber sprite.uv_x_con)]
       (print (string.format "- %s: (%dx%d),(%d,%d) -> (%f + %f, %f + %f)" name
-                            w h x y uv_x_lin uv_x_con uv_y_lin uv_y_con)))))
+                            w h x y uv_x_lin uv_x_con uv_y_lin uv_y_con))))
+  (chima-sheet:write "test.chima"))

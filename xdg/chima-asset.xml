@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<mime-info xmlns='http://www.freedesktop.org/standards/shared-mime-info'>
+  <mime-type type="application/x-chima-asset">
+    <comment>Chima asset file</comment>
+    <comment xml:lang="es">Archivo de recursos Chima</comment>
+    <magic priority="50">
+      <match type="string" value="\0x89CHIMA\0x89ASSET" offset="0"/>
+    </magic>
+    <glob pattern="*.chima"/>
+  </mime-type>
+</mime-info>

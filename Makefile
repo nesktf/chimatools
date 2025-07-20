@@ -15,6 +15,7 @@ BIN_LDFLAGS := -L$(BUILD_DIR) -l$(PROJNAME)
 
 LIB_SRCS	:= $(SRC_DIR)/chimatools.c
 LIB_OBJS  := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/lib_%.o, $(LIB_SRCS))
+LIB_INCL 	:= $(SRC_DIR)/chimatools.h
 
 BIN_SRCS 	:= $(SRC_DIR)/example.c
 BIN_OBJS	:= $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/bin_%.o, $(BIN_SRCS))
@@ -30,9 +31,18 @@ LUA_LIB_SRCS	:= $(patsubst $(FNL_SRC_DIR)/$(PROJNAME)/%.fnl, $(LUA_BUILD_DIR)/$(
 FNL_BIN_SRCS	:= $(wildcard $(FNL_SRC_DIR)/*.fnl)
 LUA_BIN_SRCS	:= $(patsubst $(FNL_SRC_DIR)/%.fnl, $(LUA_BUILD_DIR)/%, $(FNL_BIN_SRCS))
 
+MIME_XML := xdg/chima-asset.xml
+
 .PHONY: lib bin lua rock clean
 
 all: lib bin lua
+
+install: lib
+	mkdir -p /usr/include/chimatools/
+	cp $(LIB_INCL) /usr/include/chimatools/
+	cp $(LIB_SO) /usr/lib/x86_64-linux-gnu/
+	cp $(MIME_XML) /usr/share/mime/packages/
+	update-mime-database /usr/shader/mime/
 
 lib: $(LIB_SO)
 
