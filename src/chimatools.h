@@ -76,7 +76,11 @@ CHIMADEF const char* chima_error_string(chima_return ret);
 
 CHIMADEF float chima_set_atlas_factor(chima_context chima, float fac);
 
-CHIMADEF chima_bool chima_set_y_flip(chima_context chima, chima_bool flip_y);
+CHIMADEF chima_bool chima_set_image_y_flip(chima_context chima, chima_bool flip_y);
+
+CHIMADEF chima_bool chima_set_uv_y_flip(chima_context chima, chima_bool flip_y);
+
+CHIMADEF chima_bool chima_set_uv_x_flip(chima_context chima, chima_bool flip_x);
 
 CHIMADEF chima_color chima_set_sheet_color(chima_context chima, chima_color color);
 

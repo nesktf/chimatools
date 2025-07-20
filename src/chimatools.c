@@ -35,6 +35,16 @@
 #define ATLAS_GROW_FAC 2.f
 #define ATLAS_NAME "atlas"
 
+enum chima_ctx_flags {
+  CHIMA_FLAG_NONE = 0,
+  CHIMA_FLAG_Y_FLIP = 1<<0,
+  CHIMA_FLAG_UV_Y_FLIP = 1<<1,
+  CHIMA_FLAG_UV_X_FLIP = 1<<2,
+};
+
+#define SET_FLAG_BOOL(cond, flags, flag) \
+  cond ? (flags | flag) : (flags & ~flag)
+
 static const char CHIMA_MAGIC[] =
   { 0x89, 'C', 'H', 'I', 'M', 'A', 0x89, 'A', 'S', 'S', 'E', 'T'};
 
@@ -44,7 +54,7 @@ typedef struct chima_context_ {
   size_t image_count;
   size_t anim_count;
   float atlas_grow_fac;
-  chima_bool flip_y;
+  uint32_t ctx_flags;
   uint32_t atlas_initial;
   chima_color atlas_color;
   chima_image_format atlas_format;
@@ -100,7 +110,7 @@ chima_return chima_create_context(chima_context* chima, const chima_alloc* alloc
   ctx->anim_count = 0;
   ctx->alloc = chima_funcs;
   ctx->atlas_grow_fac = ATLAS_GROW_FAC;
-  ctx->flip_y = CHIMA_FALSE;
+  ctx->ctx_flags = CHIMA_FLAG_NONE;
   ctx->atlas_color.r = 1.f;
   ctx->atlas_color.g = 1.f;
   ctx->atlas_color.b = 1.f;
@@ -148,9 +158,24 @@ float chima_set_atlas_factor(chima_context chima, float fac) {
   return r;
 }
 
-chima_bool chima_set_y_flip(chima_context chima, chima_bool flip_y) {
-  chima_bool r = chima->flip_y;
-  chima->flip_y = flip_y;
+chima_bool chima_set_image_y_flip(chima_context chima, chima_bool flip_y) {
+  uint32_t flags = chima->ctx_flags;
+  chima_bool r = (flags & CHIMA_FLAG_Y_FLIP);
+  chima->ctx_flags = SET_FLAG_BOOL(flip_y, flags, CHIMA_FLAG_Y_FLIP);
+  return r;
+}
+
+chima_bool chima_set_uv_y_flip(chima_context chima, chima_bool flip_y) {
+  uint32_t flags = chima->ctx_flags;
+  chima_bool r = (flags & CHIMA_FLAG_UV_Y_FLIP);
+  chima->ctx_flags = SET_FLAG_BOOL(flip_y, flags, CHIMA_FLAG_UV_Y_FLIP);
+  return r;
+}
+
+chima_bool chima_set_uv_x_flip(chima_context chima, chima_bool flip_x) {
+  uint32_t flags = chima->ctx_flags;
+  chima_bool r = (flags & CHIMA_FLAG_UV_X_FLIP);
+  chima->ctx_flags = SET_FLAG_BOOL(flip_x, flags, CHIMA_FLAG_UV_X_FLIP);
   return r;
 }
 
@@ -315,7 +340,8 @@ chima_return chima_load_image(chima_context chima, chima_image* image,
   int req_comp = 0;
   void* result = NULL;
 
-  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
+  int flip_y = (chima->ctx_flags & CHIMA_FLAG_Y_FLIP);
+  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, flip_y);
   fclose(f);
   if (ret != CHIMA_NO_ERROR) {
     return ret;
@@ -358,7 +384,8 @@ chima_return chima_load_image_mem(chima_context chima,
   int req_comp = 0;
   void* result = NULL;
 
-  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, chima->flip_y);
+  int flip_y = (chima->ctx_flags & CHIMA_FLAG_Y_FLIP);
+  chima_return ret = load_texels(&stbi, &ri, &result, &w, &h, &comp, req_comp, flip_y);
   if (ret != CHIMA_NO_ERROR) {
     return ret;
   }
@@ -638,18 +665,37 @@ copy_texels:
   if (ret != CHIMA_NO_ERROR) {
     return ret;
   }
+
+  chima_bool flip_x = (chima->ctx_flags & CHIMA_FLAG_UV_X_FLIP);
+  chima_bool flip_y = (chima->ctx_flags & CHIMA_FLAG_UV_Y_FLIP);
+
   for (size_t i = 0; i < image_count; ++i) {
     // Writting directly to the chima_sprites **should** be fine. Will need some tests
     // Copy in case we overlap with the stbrp_rect data in the last chima_sprite
     uint32_t x = rects[i].x;
     uint32_t y = rects[i].y;
+
+    uint32_t w = images[i]->width;
+    uint32_t h = images[i]->height;
+
     sprites[i].x_off = x;
     sprites[i].y_off = y;
-    sprites[i].width = images[i]->width;
-    sprites[i].height = images[i]->height;
+    sprites[i].width = w;
+    sprites[i].height = h;
     memset(sprites[i].name.data, 0, CHIMA_STRING_MAX_SIZE);
     memcpy(sprites[i].name.data, images[i]->name.data, images[i]->name.length);
     sprites[i].name.length = images[i]->name.length;
+
+    float uv_scale_x = (flip_x*-1.f + !flip_x*1.f)*(float)w/(float)atlas_size;
+    float uv_off_x = (float)(x + w)/(float)atlas_size;
+    sprites[i].uv_x_lin = uv_scale_x;
+    sprites[i].uv_x_con = flip_x*(1.f-uv_off_x) + !flip_x*uv_off_x;
+
+    float uv_scale_y = (flip_y*-1.f + !flip_y*1.f)*(float)h/(float)atlas_size;
+    float uv_off_y = (float)(y + h)/(float)atlas_size;
+    sprites[i].uv_y_lin = uv_scale_y;
+    sprites[i].uv_x_con = flip_y*(1.f-uv_off_y) + !flip_y*uv_off_y;
+
     chima_composite_image(atlas, images[i], x, y);
   }
 

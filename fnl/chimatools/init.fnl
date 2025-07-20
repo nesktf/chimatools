@@ -16,8 +16,12 @@
 (local chima-context-mt
        {:set_atlas_factor (fn [self factor]
                             (lib.chima_set_atlas_factor self factor))
-        :set_y_flip (fn [self flip_y]
-                      (lib.chima_set_y_flip self flip_y))
+        :set_image_y_flip (fn [self flip_y]
+                            (lib.chima_set_image_y_flip self flip_y))
+        :set_image_uv_y_flip (fn [self flip_y]
+                               (lib.chima_set_uv_y_flip self flip_y))
+        :set_image_uv_x_flip (fn [self flip_x]
+                               (lib.chima_set_uv_x_flip self flip_x))
         :set_atlas_color_comp (fn [self r g b a]
                                 (lib.chima_set_sheet_color self
                                                            (color:new r g b a)))
