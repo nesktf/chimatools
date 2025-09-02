@@ -35,6 +35,161 @@
 #define ATLAS_GROW_FAC 2.f
 #define ATLAS_NAME "atlas"
 
+#define ARENA_GROW_FAC 2.f
+
+static void* chima_malloc(void* user, size_t size) {
+  CHIMA_UNUSED(user);
+  void* mem = malloc(size);
+  // printf("- MALLOC: %p (%lu)\n", mem, size);
+  return mem;
+}
+
+static void chima_free(void* user, void* ptr) {
+  CHIMA_UNUSED(user);
+  // printf("- FREE: %p\n", ptr);
+  free(ptr);
+}
+
+static void* chima_realloc(void* user, void* ptr, size_t oldsz, size_t newsz) {
+  CHIMA_UNUSED(user);
+  CHIMA_UNUSED(oldsz);
+  void* mem = realloc(ptr, newsz);
+  // printf("- REALLOC: %p (%lu) -> %p (%lu)\n", ptr, oldsz, mem, newsz);
+  return mem;
+}
+
+static void init_default_alloc(chima_alloc* alloc) {
+  alloc->user_data = NULL;
+  alloc->malloc = &chima_malloc;
+  alloc->free = &chima_free;
+  alloc->realloc = &chima_realloc;
+}
+
+static size_t align_fw_adjust(void* ptr, size_t align) {
+  uintptr_t iptr = (uintptr_t)ptr;
+  // return ((iptr - 1u + align) & -align) - iptr;
+  return align - (iptr & (align - 1u));
+}
+
+typedef struct arena_block {
+  struct arena_block *prev, *next;
+  size_t size;
+  uint8_t* data;
+} arena_block;
+
+static const size_t MIN_BLOCK_SZ = 4096;
+
+chima_return chima_init_arena(chima_arena* arena, const chima_alloc* alloc, size_t size) {
+  size = size > MIN_BLOCK_SZ ? size : MIN_BLOCK_SZ;
+  chima_alloc chima_funcs;
+  if (alloc) {
+    chima_funcs = *alloc;
+  } else {
+    init_default_alloc(&chima_funcs);
+  }
+  assert(chima_funcs.malloc);
+  assert(chima_funcs.free);
+  assert(chima_funcs.realloc);
+
+  arena_block* block = chima_funcs.malloc(chima_funcs.user_data, sizeof(arena_block)+size);
+  if (!block) {
+    return CHIMA_ALLOC_FAILURE;
+  }
+  memset(block, 0, sizeof(*block));
+  block->size = size;
+  block->data = ((uint8_t*)block)+sizeof(*block);
+
+  memset(arena, 0, sizeof(*arena));
+  arena->alloc = chima_funcs;
+  arena->allocated = size;
+  arena->used = 0;
+  arena->pos = 0;
+  arena->blocks = block;
+
+  return CHIMA_NO_ERROR;
+}
+
+void chima_destroy_arena(chima_arena* arena) {
+  chima_arena_clear(arena);
+  arena_block* block = arena->blocks;
+  while (block) {
+    arena_block* next = block->next;
+    arena->alloc.free(arena->alloc.user_data, block);
+    block = next;
+  }
+  memset(arena, 0, sizeof(*arena));
+}
+
+static size_t next_pow2(size_t x) {
+  // https://jameshfisher.com/2018/03/30/round-up-power-2/
+#ifdef __GNUC__
+  return x == 1ull ? x : 1ull <<(64ull - __builtin_clzl(x-1));
+#else
+  x |= x>>1;
+	x |= x>>2;
+	x |= x>>4;
+	x |= x>>8;
+	x |= x>>16;
+	x |= x>>32;
+  return x;
+#endif
+}
+
+void* chima_arena_alloc(chima_arena* arena, size_t size, size_t align) {
+  arena_block* block = arena->blocks;
+  const size_t available = block->size-arena->pos;
+
+  uintptr_t ptr_pos = (uintptr_t)(block->data)+arena->pos;
+  size_t pad = align_fw_adjust((void*)ptr_pos, align);
+  size_t required = size+pad;
+  if (available < required) {
+    if (block->next) {
+      // TODO: maybe the block is too small
+      block = block->next;
+    } else {
+      const size_t size_next_pow = next_pow2(size);
+      const size_t block_next_sz = roundf(block->size*ARENA_GROW_FAC);
+      const size_t data_sz = size_next_pow > block_next_sz ? size_next_pow : block_next_sz;
+      block = arena->alloc.malloc(arena->alloc.user_data, sizeof(*block)+data_sz);
+      if (!block) {
+        return NULL;
+      }
+      memset(block, 0, sizeof(*block));
+      block->size = data_sz;
+      block->data = ((uint8_t*)block)+sizeof(*block);
+      block->prev = arena->blocks;
+      ((arena_block*)(arena->blocks))->next = block;
+      arena->blocks = block;
+      arena->allocated += data_sz;
+    }
+    arena->pos = 0;
+    ptr_pos = (uintptr_t)block->data;
+    pad = align_fw_adjust((void*)ptr_pos, align);
+    required = size+pad;
+  }
+  void* mem = (void*)(ptr_pos+align);
+  arena->used += required;
+  arena->pos += required;
+  return mem;
+}
+
+void chima_arena_pop(chima_arena* arena, size_t size) {
+
+}
+
+void chima_arena_set_pos(chima_arena* arena, size_t pos) {
+
+}
+
+void chima_arena_clear(chima_arena* arena) {
+  arena_block* block = arena->blocks;
+  while (block->prev) {
+    block = block->prev;
+  }
+  arena->blocks = block;
+  arena->used = 0;
+}
+
 enum chima_ctx_flags {
   CHIMA_FLAG_NONE = 0,
   CHIMA_FLAG_Y_FLIP = 1<<0,
@@ -61,27 +216,6 @@ typedef struct chima_context_ {
   chima_string atlas_name;
 } chima_context_;
 
-static void* chima_malloc(void* user, size_t size) {
-  CHIMA_UNUSED(user);
-  void* mem = malloc(size);
-  // printf("- MALLOC: %p (%lu)\n", mem, size);
-  return mem;
-}
-
-static void chima_free(void* user, void* ptr) {
-  CHIMA_UNUSED(user);
-  // printf("- FREE: %p\n", ptr);
-  free(ptr);
-}
-
-static void* chima_realloc(void* user, void* ptr, size_t oldsz, size_t newsz) {
-  CHIMA_UNUSED(user);
-  CHIMA_UNUSED(oldsz);
-  void* mem = realloc(ptr, newsz);
-  // printf("- REALLOC: %p (%lu) -> %p (%lu)\n", ptr, oldsz, mem, newsz);
-  return mem;
-}
-
 chima_return chima_create_context(chima_context* chima, const chima_alloc* alloc) {
   if (!chima) {
     return CHIMA_INVALID_VALUE;
@@ -91,10 +225,7 @@ chima_return chima_create_context(chima_context* chima, const chima_alloc* alloc
   if (alloc) {
     chima_funcs = *alloc;
   } else {
-    chima_funcs.user_data = NULL;
-    chima_funcs.malloc = &chima_malloc;
-    chima_funcs.free = &chima_free;
-    chima_funcs.realloc = &chima_realloc;
+    init_default_alloc(&chima_funcs);
   }
   assert(chima_funcs.malloc);
   assert(chima_funcs.free);
@@ -620,12 +751,6 @@ void chima_destroy_anim(chima_anim* anim) {
   memset(anim, 0, sizeof(chima_anim));
 }
 
-static size_t align_fw_adjust(void* ptr, size_t align) {
-  uintptr_t iptr = (uintptr_t)ptr;
-  // return ((iptr - 1u + align) & -align) - iptr;
-  return align - (iptr & (align - 1u));
-}
-
 chima_return chima_create_atlas_image(chima_context chima, chima_image* atlas,
                                       chima_sprite* sprites, uint32_t pad,
                                       const chima_image** images, size_t image_count)
@@ -634,7 +759,7 @@ chima_return chima_create_atlas_image(chima_context chima, chima_image* atlas,
   // Remove this when the scratch arena is implemented (?)
   uint8_t* rect_start =
     (uint8_t*)(sprites+image_count)-(image_count+1)*sizeof(stbrp_rect); // one for alignment
-  stbrp_rect* rects = (stbrp_rect*)(rect_start+align_fw_adjust(rects, alignof(stbrp_rect)));
+  stbrp_rect* rects = (stbrp_rect*)(rect_start+align_fw_adjust(rect_start, alignof(stbrp_rect)));
 
   stbrp_node* nodes =
     (stbrp_node*)((uint8_t*)sprites+align_fw_adjust(sprites, alignof(stbrp_node)));
@@ -896,7 +1021,7 @@ chima_return chima_load_spritesheet(chima_context chima,
     return CHIMA_ALLOC_FAILURE;
   }
   read = fread(fsprites, sizeof(fsprites[0]), header.sprite_count, f);
-  if (read != header.sprite_count) {
+  if ((uint32_t)read != header.sprite_count) {
     CHIMA_FREE(chima, fsprites);
     fclose(f);
     return CHIMA_FILE_EOF;
@@ -911,7 +1036,7 @@ chima_return chima_load_spritesheet(chima_context chima,
     return CHIMA_ALLOC_FAILURE;
   }
   read = fread(fanims, sizeof(fanims[0]), header.anim_count, f);
-  if (read != header.anim_count) {
+  if ((uint32_t)read != header.anim_count) {
     CHIMA_FREE(chima, fanims);
     CHIMA_FREE(chima, fsprites);
     fclose(f);
@@ -928,7 +1053,7 @@ chima_return chima_load_spritesheet(chima_context chima,
     return CHIMA_ALLOC_FAILURE;
   }
   read = fread(fnames, sizeof(fnames[0]), header.name_size, f);
-  if (read != read_len) {
+  if ((size_t)read != read_len) {
     CHIMA_FREE(chima, fnames);
     CHIMA_FREE(chima, fanims);
     CHIMA_FREE(chima, fsprites);
@@ -947,7 +1072,7 @@ chima_return chima_load_spritesheet(chima_context chima,
     return CHIMA_ALLOC_FAILURE;
   }
   read = fread(image_data, 1, file_sz, f);
-  assert(read == read_len);
+  assert((size_t)read == read_len);
   fclose(f);
 
   chima_sprite* sprites = CHIMA_MALLOC(chima, header.sprite_count*sizeof(chima_sprite));

@@ -23,13 +23,13 @@
                        (case (check-err (lib.chima_create_image chima img w h
                                                                 ch color ?name))
                          nil (gc-wrap chima img lib.chima_destroy_image)
-                         (err ret) (values err ret))))
+                         (err ret) (values nil err ret))))
               :load (λ [chima ?name path]
                       (let [img (ffi.new image-ctype)]
                         (case (check-err (lib.chima_load_image chima img ?name
                                                                path))
                           nil (gc-wrap chima img lib.chima_destroy_image)
-                          (err ret) (values err ret))))})
+                          (err ret) (values nil err ret))))})
 
 (local anim-mt {})
 (set anim-mt.__index anim-mt)
@@ -40,13 +40,13 @@
                        (case (check-err (lib.chima_load_anim chima anim ?name
                                                              path))
                          nil (gc-wrap chima anim lib.chima_destroy_anim)
-                         (err ret) (values err ret))))})
+                         (err ret) (values nil err ret))))})
 
 (local spritesheet-mt
        {:write (λ [self path]
                  (case (check-err (lib.chima_write_spritesheet self path))
                    nil nil
-                   (err ret) (values err ret)))})
+                   (err ret) (values nil err ret)))})
 
 (set spritesheet-mt.__index spritesheet-mt)
 
@@ -68,12 +68,12 @@
                                                                 imgs img-len
                                                                 anims anim-len))
                    nil (gc-wrap chima sheet lib.chima_destroy_spritesheet)
-                   (err ret) (values err ret))))
+                   (err ret) (values nil err ret))))
         :load (λ [chima path]
                 (let [sheet (ffi.new spritesheet-ctype)]
                   (case (check-err (lib.chima_load_spritesheet chima sheet path))
                     nil (gc-wrap chima sheet lib.chima_destroy_spritesheet)
-                    (err ret) (values err ret))))})
+                    (err ret) (values nil err ret))))})
 
 (local chima-sprite-mt {})
 (set chima-sprite-mt.__index chima-sprite-mt)

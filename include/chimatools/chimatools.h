@@ -18,6 +18,21 @@
 extern "C" {
 #endif
 
+typedef enum chima_return {
+  CHIMA_NO_ERROR = 0,
+  CHIMA_ALLOC_FAILURE,
+  CHIMA_FILE_OPEN_FAILURE,
+  CHIMA_FILE_WRITE_FAILURE,
+  CHIMA_FILE_EOF,
+  CHIMA_IMAGE_PARSE_FAILURE,
+  CHIMA_INVALID_VALUE,
+  CHIMA_INVALID_FORMAT,
+  CHIMA_PACKING_FAILED,
+  CHIMA_RETURN_COUNT,
+
+  _CHIMA_RETURN_FORCE_32BIT = 0x7fffffff,
+} chima_return;
+
 typedef void* (*PFN_chima_malloc)(void* user, size_t size);
 typedef void* (*PFN_chima_realloc)(void* user, void* ptr, size_t oldsz, size_t newsz);
 typedef void (*PFN_chima_free)(void* user, void* ptr);
@@ -28,6 +43,32 @@ typedef struct chima_alloc {
   PFN_chima_realloc realloc;
   PFN_chima_free free;
 } chima_alloc;
+
+typedef struct chima_arena {
+  chima_alloc alloc;
+  size_t allocated;
+  size_t used;
+  size_t pos;
+  void* blocks;
+} chima_arena;
+
+CHIMADEF chima_return chima_init_arena(chima_arena* arena, const chima_alloc* alloc, size_t size);
+
+CHIMADEF void* chima_arena_alloc(chima_arena* arena, size_t size, size_t align);
+
+#define chima_arena_push(arena, type) \
+  (type*)(chima_arena_alloc(arena, sizeof(type), alignof(type)))
+
+#define chima_arena_push_array(arena, type, n) \
+  (type*)(chima_arena_alloc(arena, (n*sizeof(type)), alignof(type)))
+
+CHIMADEF void chima_arena_pop(chima_arena* arena, size_t size);
+
+CHIMADEF void chima_arena_set_pos(chima_arena* arena, size_t pos);
+
+CHIMADEF void chima_arena_clear(chima_arena* arena);
+
+CHIMADEF void chima_destroy_arena(chima_arena* arena);
 
 struct chima_context_;
 typedef struct chima_context_ *chima_context;
@@ -43,20 +84,6 @@ typedef struct chima_color {
   float r, g, b, a;
 } chima_color;
 
-typedef enum chima_return {
-  CHIMA_NO_ERROR = 0,
-  CHIMA_ALLOC_FAILURE,
-  CHIMA_FILE_OPEN_FAILURE,
-  CHIMA_FILE_WRITE_FAILURE,
-  CHIMA_FILE_EOF,
-  CHIMA_IMAGE_PARSE_FAILURE,
-  CHIMA_INVALID_VALUE,
-  CHIMA_INVALID_FORMAT,
-  CHIMA_PACKING_FAILED,
-  CHIMA_RETURN_COUNT,
-
-  _CHIMA_RETURN_FORCE_32BIT = 0x7fffffff,
-} chima_return;
 
 typedef enum chima_image_format {
   CHIMA_FORMAT_RAW = 0,
@@ -129,7 +156,7 @@ CHIMADEF chima_return chima_write_image(const chima_image* image, const char* pa
 CHIMADEF void chima_destroy_image(chima_image* image);
 
 CHIMADEF chima_return chima_composite_image(chima_image* dst, const chima_image* src,
-                                            uint32_t y, uint32_t x);
+                                            uint32_t x, uint32_t y);
 
 typedef struct chima_anim {
   chima_context ctx;
