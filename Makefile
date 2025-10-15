@@ -2,6 +2,8 @@ PROJNAME  		:= chimatools
 BUILD_DIR			?= build
 INCLUDE_DIR 	:= include/chimatools
 LUA_BUILD_DIR := $(BUILD_DIR)/lua
+PREFIX 				?= /usr/local
+DESTDIR 			?= $(BUILD_DIR)/out
 
 CC 			:= gcc
 AR 			:= ar rcs
@@ -40,12 +42,12 @@ MIME_XML := xdg/chima-asset.xml
 all: lib shared bin lua
 
 install: shared
-	mkdir -p /usr/include/chimatools/
-	cp -r $(INCLUDE_DIR) /usr/include/
-	cp $(LIB_INCL) /usr/include/chimatools/
-	cp $(LIB_SHARED) /usr/lib/x86_64-linux-gnu/
-	cp $(MIME_XML) /usr/share/mime/packages/
-	update-mime-database /usr/share/mime/
+	install -dm755 $(DESTDIR)$(PREFIX)/include/chimatools/
+	install -Dm644 $(INCLUDE_DIR)/chimatools.h $(DESTDIR)$(PREFIX)/include/chimatools/
+	install -dm755 $(DESTDIR)$(PREFIX)/lib/
+	install -Dm644 $(LIB_SHARED) $(DESTDIR)$(PREFIX)/lib/
+	install -dm755 $(DESTDIR)$(PREFIX)/share/mime/packages/
+	install -Dm644 $(MIME_XML) $(DESTDIR)$(PREFIX)/share/mime/packages
 
 shared: $(LIB_SHARED)
 
