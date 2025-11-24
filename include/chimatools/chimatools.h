@@ -1,18 +1,26 @@
 #pragma once
 
 #ifdef __cplusplus
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#ifndef CHIMA_ASSERT
+#include <cassert>
+#define CHIMA_ASSERT assert
+#endif
 #else
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#ifndef CHIMA_ASSERT
+#include <assert.h>
+#define CHIMA_ASSERT assert
+#endif
 #endif
 
-#define CHIMADEF extern
+#define CHIMADEF              extern
 #define CHIMA_STRING_MAX_SIZE 256
-#define CHIMA_TRUE 1
-#define CHIMA_FALSE 0
-#define CHIMA_ARR_SZ(arr) sizeof(arr)/sizeof(arr[0])
+#define CHIMA_TRUE            1
+#define CHIMA_FALSE           0
+#define CHIMA_ARR_SZ(arr)     sizeof(arr) / sizeof(arr[0])
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +38,7 @@ typedef struct chima_alloc {
 } chima_alloc;
 
 struct chima_context_;
-typedef struct chima_context_ *chima_context;
+typedef struct chima_context_* chima_context;
 
 typedef uint32_t chima_bool;
 
@@ -100,6 +108,7 @@ typedef enum chima_image_depth {
 } chima_image_depth;
 
 typedef struct chima_anim chima_anim;
+
 typedef struct chima_image {
   chima_context ctx;
   chima_string name;
@@ -111,25 +120,23 @@ typedef struct chima_image {
   chima_anim* anim;
 } chima_image;
 
-CHIMADEF chima_return chima_create_image(chima_context chima, chima_image* image,
-                                         uint32_t w, uint32_t h, uint32_t ch,
-                                         chima_color color, const char* name);
+CHIMADEF chima_return chima_create_image(chima_context chima, chima_image* image, uint32_t w,
+                                         uint32_t h, uint32_t ch, chima_color color,
+                                         const char* name);
 
-CHIMADEF chima_return chima_load_image(chima_context chima,
-                                       chima_image* image, const char* name,
+CHIMADEF chima_return chima_load_image(chima_context chima, chima_image* image, const char* name,
                                        const char* path);
 
-CHIMADEF chima_return chima_load_image_mem(chima_context chima,
-                                           chima_image* image, const char* name,
-                                           const uint8_t* buffer, size_t len);
+CHIMADEF chima_return chima_load_image_mem(chima_context chima, chima_image* image,
+                                           const char* name, const uint8_t* buffer, size_t len);
 
 CHIMADEF chima_return chima_write_image(const chima_image* image, const char* path,
                                         chima_image_format format);
 
 CHIMADEF void chima_destroy_image(chima_image* image);
 
-CHIMADEF chima_return chima_composite_image(chima_image* dst, const chima_image* src,
-                                            uint32_t y, uint32_t x);
+CHIMADEF chima_return chima_composite_image(chima_image* dst, const chima_image* src, uint32_t y,
+                                            uint32_t x);
 
 typedef struct chima_anim {
   chima_context ctx;
@@ -139,8 +146,7 @@ typedef struct chima_anim {
   float fps;
 } chima_anim;
 
-CHIMADEF chima_return chima_load_anim(chima_context chima,
-                                      chima_anim* anim, const char* name,
+CHIMADEF chima_return chima_load_anim(chima_context chima, chima_anim* anim, const char* name,
                                       const char* path);
 
 CHIMADEF void chima_destroy_anim(chima_anim* anim);
@@ -187,10 +193,10 @@ CHIMADEF chima_return chima_create_atlas_image(chima_context chima, chima_image*
                                                chima_sprite* sprites, uint32_t pad,
                                                const chima_image** images, size_t image_count);
 
-CHIMADEF chima_return chima_create_spritesheet(chima_context chima,
-                                               chima_spritesheet* sheet, uint32_t pad,
-                                               const chima_image* images, size_t image_count,
-                                               const chima_anim* anims, size_t anim_count);
+CHIMADEF chima_return chima_create_spritesheet(chima_context chima, chima_spritesheet* sheet,
+                                               uint32_t pad, const chima_image* images,
+                                               size_t image_count, const chima_anim* anims,
+                                               size_t anim_count);
 
 CHIMADEF chima_return chima_load_spritesheet(chima_context chima, chima_spritesheet* sheet,
                                              const char* path);

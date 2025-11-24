@@ -29,7 +29,7 @@
 #define CHIMA_SHEET_MAJ 0
 #define CHIMA_SHEET_MIN 1
 
-#define CHIMA_STATIC_ASSERT(cond) _Static_assert(cond, #cond)
+#define CHIMA_STATIC_CHIMA_ASSERT(cond) _Static_CHIMA_ASSERT(cond, #cond)
 #define ATLAS_MAX_SIZE 16384
 #define ATLAS_INIT_SIZE 512
 #define ATLAS_GROW_FAC 2.f
@@ -96,9 +96,9 @@ chima_return chima_create_context(chima_context* chima, const chima_alloc* alloc
     chima_funcs.free = &chima_free;
     chima_funcs.realloc = &chima_realloc;
   }
-  assert(chima_funcs.malloc);
-  assert(chima_funcs.free);
-  assert(chima_funcs.realloc);
+  CHIMA_ASSERT(chima_funcs.malloc);
+  CHIMA_ASSERT(chima_funcs.free);
+  CHIMA_ASSERT(chima_funcs.realloc);
 
   chima_context ctx = chima_funcs.malloc(chima_funcs.user_data, sizeof(chima_context_));
   if (!ctx) {
@@ -218,7 +218,7 @@ static void rename_image(const char* name, chima_image* image, size_t fmt_count)
   } else {
     int len = snprintf(image->name.data, CHIMA_STRING_MAX_SIZE,
                        "chima_image%lu", fmt_count);
-    assert(len > 0);
+    CHIMA_ASSERT(len > 0);
     image->name.length = (size_t)len-1; // No null terminator
   }
 }
@@ -231,7 +231,7 @@ static void rename_anim(const char* name, chima_anim* anim, size_t fmt_count) {
   } else {
     int len = snprintf(anim->name.data, CHIMA_STRING_MAX_SIZE,
                        "chima_anim%lu", fmt_count);
-    assert(len > 0);
+    CHIMA_ASSERT(len > 0);
     anim->name.length = (size_t)len-1; // No null terminator
   }
 
@@ -243,7 +243,7 @@ static void rename_anim(const char* name, chima_anim* anim, size_t fmt_count) {
     chima_image* image = anim->images+i;
     int len = snprintf(image->name.data, CHIMA_STRING_MAX_SIZE,
                        name_fmt_buff, i);
-    assert(len > 0);
+    CHIMA_ASSERT(len > 0);
     image->name.length = (size_t)len;
   }
 }
@@ -347,9 +347,9 @@ chima_return chima_load_image(chima_context chima, chima_image* image,
     return ret;
   }
 
-  assert(w > 0 && h > 0);
-  assert(comp > 0);
-  assert(result);
+  CHIMA_ASSERT(w > 0 && h > 0);
+  CHIMA_ASSERT(comp > 0);
+  CHIMA_ASSERT(result);
 
   memset(image, 0, sizeof(chima_image));
   image->width = (uint32_t)w;
@@ -390,7 +390,7 @@ chima_return chima_load_image_mem(chima_context chima,
     return ret;
   }
 
-  assert(result);
+  CHIMA_ASSERT(result);
   image->channels = (uint8_t)comp;
   image->height = (uint32_t)h;
   image->width = (uint32_t)w;
@@ -524,7 +524,7 @@ chima_return chima_load_anim(chima_context chima,
   gif_node* curr_node = NULL;
   chima_bool free_images = CHIMA_FALSE;
   while ((data = stbi__gif_load_next(&stbi, &gif, &comp, 0, two_back)) != NULL) {
-    assert(comp);
+    CHIMA_ASSERT(comp);
     if (data == &stbi) {
       data = NULL;
       break;
@@ -947,7 +947,7 @@ chima_return chima_load_spritesheet(chima_context chima,
     return CHIMA_ALLOC_FAILURE;
   }
   read = fread(image_data, 1, file_sz, f);
-  assert(read == read_len);
+  CHIMA_ASSERT(read == read_len);
   fclose(f);
 
   chima_sprite* sprites = CHIMA_MALLOC(chima, header.sprite_count*sizeof(chima_sprite));
