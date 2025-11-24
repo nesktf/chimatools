@@ -191,7 +191,6 @@ public:
   LVALUE_RVALUE_METHOD_OVERLOAD(Derived, set_sheet_color(chima_color color), {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_sheet_color(_chima, color);
-    return static_cast<Derived&>(*this);
   })
 
 protected:
