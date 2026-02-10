@@ -34,6 +34,13 @@ typedef struct chima_context_ {
   chima_u32 anim_count;
 } chima_context_;
 
+static inline chima_alloc alloc_from_chima(chima_context chima) {
+  return (chima_alloc){.user = chima->mem_user,
+                       .malloc = chima->mem_alloc,
+                       .realloc = chima->mem_realloc,
+                       .free = chima->mem_free};
+}
+
 typedef enum chima_ctx_flags {
   CHIMA_CTX_FLAG_NONE = 0x0000,
   CHIMA_CTX_FLAG_FLIP_Y = 0x0001,

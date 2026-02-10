@@ -29,8 +29,7 @@ extern "C" {
  *  that does not belong to other groups.
  */
 
-#if !defined(_WIN32) && \
-  (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
+#if !defined(_WIN32) && (defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__))
 #define _WIN32
 #endif
 
@@ -71,6 +70,9 @@ extern "C" {
  * @{ */
 #include <stddef.h>
 #include <stdint.h>
+#ifndef CHIMA_NO_STDIO
+#include <stdio.h>
+#endif
 
 /*! @brief One.
  *
@@ -183,8 +185,7 @@ typedef void* (*PFN_chima_malloc)(void* user, size_t size);
  *
  *  @ingroup core
  */
-typedef void* (*PFN_chima_realloc)(void* user, void* ptr, size_t oldsz,
-                                   size_t newsz);
+typedef void* (*PFN_chima_realloc)(void* user, void* ptr, size_t oldsz, size_t newsz);
 
 /*! @brief Function pointer used for freeing internal allocations.
  *
@@ -363,8 +364,7 @@ CHIMA_API const char* chima_error_string(chima_result ret);
  *
  *  @ingroup image
  */
-CHIMA_API chima_result chima_create_context(chima_context* chima,
-                                            const chima_alloc* alloc);
+CHIMA_API chima_result chima_create_context(chima_context* chima, const chima_alloc* alloc);
 
 /*! @brief Sets the atlas initial size.
  *
@@ -381,8 +381,7 @@ CHIMA_API chima_result chima_create_context(chima_context* chima,
  *
  *  @ingroup image
  */
-CHIMA_API chima_u32 chima_set_atlas_initial(chima_context chima,
-                                            chima_u32 initial);
+CHIMA_API chima_u32 chima_set_atlas_initial(chima_context chima, chima_u32 initial);
 
 /*! @brief Sets the atlas grow factor.
  *
@@ -400,8 +399,7 @@ CHIMA_API chima_u32 chima_set_atlas_initial(chima_context chima,
  *
  *  @ingroup image
  */
-CHIMA_API chima_f32 chima_set_atlas_factor(chima_context chima,
-                                           chima_f32 factor);
+CHIMA_API chima_f32 chima_set_atlas_factor(chima_context chima, chima_f32 factor);
 
 /*! @brief Sets the image loader flip flag.
  *
@@ -469,33 +467,31 @@ typedef struct chima_image {
   void* data;
 } chima_image;
 
-CHIMA_API chima_result chima_create_image(chima_context chima,
-                                          chima_image* image, chima_u32 width,
-                                          chima_u32 height, chima_u32 channels,
-                                          chima_image_depth depth,
-                                          chima_color background_color);
+CHIMA_API chima_result chima_gen_blank_image(chima_context chima, chima_image* image,
+                                             chima_u32 width, chima_u32 height, chima_u32 channels,
+                                             chima_image_depth depth, chima_color background_color);
 
-CHIMA_API chima_result chima_create_atlas_image(
-  chima_context chima, chima_image* atlas, chima_rect* sprites,
-  chima_u32 pading, chima_color background_color, const chima_image* images,
-  chima_size image_count);
+CHIMA_API chima_result chima_gen_atlas_image(chima_context chima, chima_image* atlas,
+                                             chima_rect* sprites, chima_u32 padding,
+                                             chima_color background_color,
+                                             const chima_image* images, chima_size image_count);
 
 CHIMA_API chima_result chima_load_image(chima_context chima, chima_image* image,
-                                        chima_image_depth depth,
-                                        const char* path);
+                                        chima_image_depth depth, const char* path);
 
-CHIMA_API chima_result chima_load_image_mem(chima_context chima,
-                                            chima_image* image,
-                                            chima_image_depth depth,
-                                            const chima_u8* buffer,
+#ifndef CHIMA_NO_STDIO
+CHIMA_API chima_result chima_load_image_file(chima_context chima, chima_image* image,
+                                             chima_image_depth depth, FILE* f);
+#endif
+
+CHIMA_API chima_result chima_load_image_mem(chima_context chima, chima_image* image,
+                                            chima_image_depth depth, const chima_u8* buffer,
                                             chima_size buffer_len);
 
-CHIMA_API chima_result chima_write_image(const chima_image* image,
-                                         const char* path,
-                                         chima_image_format format);
+CHIMA_API chima_result chima_write_image(chima_context chima, const chima_image* image,
+                                         chima_image_format format, const char* path);
 
-CHIMA_API chima_result chima_composite_image(chima_image* dst,
-                                             const chima_image* src,
+CHIMA_API chima_result chima_composite_image(chima_image* dst, const chima_image* src,
                                              chima_u32 xpos, chima_u32 ypos);
 
 CHIMA_API void chima_destroy_image(chima_context chima, chima_image* image);
@@ -506,44 +502,40 @@ typedef struct chima_image_anim {
   chima_size image_count;
 } chima_image_anim;
 
-CHIMA_API chima_result chima_load_image_anim(chima_context chima,
-                                             chima_image_anim* anim,
+CHIMA_API chima_result chima_load_image_anim(chima_context chima, chima_image_anim* anim,
                                              const char* path);
+#ifndef CHIMA_NO_STDIO
+CHIMA_API chima_result chima_load_image_anim_file(chima_context chima, chima_image_anim* anim,
+                                                  FILE* f);
+#endif
 
-CHIMA_API void chima_destroy_anim(chima_context chima, chima_image_anim* anim);
+CHIMA_API void chima_destroy_image_anim(chima_context chima, chima_image_anim* anim);
 
 typedef struct chima_sheet_data_* chima_sheet_data;
 
-CHIMA_API chima_result chima_create_sheet_data(chima_context chima,
-                                               chima_sheet_data* data);
+CHIMA_API chima_result chima_create_sheet_data(chima_context chima, chima_sheet_data* data);
 
-CHIMA_API chima_result chima_sheet_add_image(chima_sheet_data data,
-                                             const chima_image* image,
+CHIMA_API chima_result chima_sheet_add_image(chima_sheet_data data, const chima_image* image,
                                              const char* name);
 
-CHIMA_API chima_result chima_sheet_add_image_sv(chima_sheet_data data,
-                                                const chima_image* image,
+CHIMA_API chima_result chima_sheet_add_image_sv(chima_sheet_data data, const chima_image* image,
                                                 chima_string_view name);
 
-CHIMA_API chima_result chima_sheet_add_images(chima_sheet_data data,
-                                              const chima_image* images,
-                                              const chima_u32* frametimes,
-                                              chima_size count,
+CHIMA_API chima_result chima_sheet_add_images(chima_sheet_data data, const chima_image* images,
+                                              const chima_u32* frametimes, chima_size count,
                                               const char* basename);
 
-CHIMA_API chima_result chima_sheet_add_images_sv(chima_sheet_data data,
-                                                 const chima_image* images,
-                                                 const chima_u32* frametimes,
-                                                 chima_size count,
+CHIMA_API chima_result chima_sheet_add_images_sv(chima_sheet_data data, const chima_image* images,
+                                                 const chima_u32* frametimes, chima_size count,
                                                  chima_string_view basename);
 
 CHIMA_API chima_result chima_sheet_add_image_anim(chima_sheet_data data,
                                                   const chima_image_anim* anim,
                                                   const char* basename);
 
-CHIMA_API chima_result chima_sheet_add_image_anim_sv(
-  chima_sheet_data data, const chima_image_anim* anim,
-  chima_string_view basename);
+CHIMA_API chima_result chima_sheet_add_image_anim_sv(chima_sheet_data data,
+                                                     const chima_image_anim* anim,
+                                                     chima_string_view basename);
 
 CHIMA_API void chima_destroy_sheet_data(chima_sheet_data data);
 
@@ -567,49 +559,25 @@ typedef struct chima_spritesheet {
   chima_size anim_count;
 } chima_spritesheet;
 
-CHIMA_API chima_result chima_create_spritesheet(chima_context chima,
-                                                chima_spritesheet* sheet,
-                                                chima_sheet_data data,
-                                                chima_u32 padding,
-                                                chima_color background_color);
+CHIMA_API chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet,
+                                             chima_sheet_data data, chima_u32 padding,
+                                             chima_color background_color);
 
-CHIMA_API chima_result chima_load_spritesheet(chima_context chima,
-                                              chima_spritesheet* sheet,
+CHIMA_API chima_result chima_load_spritesheet(chima_context chima, chima_spritesheet* sheet,
                                               const char* path);
 
-CHIMA_API chima_result chima_load_spritesheet_mem(chima_context chima,
-                                                  chima_spritesheet* sheet,
-                                                  const chima_u8* buffer,
-                                                  chima_size buffer_len);
+#ifndef CHIMA_NO_STDIO
+CHIMA_API chima_result chima_load_spritesheet_file(chima_context chima, chima_spritesheet* sheet,
+                                                   FILE* f);
+#endif
 
-CHIMA_API chima_result chima_write_spritesheet(const chima_spritesheet* sheet,
-                                               const char* path,
+CHIMA_API chima_result chima_load_spritesheet_mem(chima_context chima, chima_spritesheet* sheet,
+                                                  const chima_u8* buffer, chima_size buffer_len);
+
+CHIMA_API chima_result chima_write_spritesheet(const chima_spritesheet* sheet, const char* path,
                                                chima_image_format format);
 
-CHIMA_API void chima_destroy_spritesheet(chima_context chima,
-                                         chima_spritesheet* sheet);
-
-// stbrp wrapper things
-typedef struct chima_packed_rect {
-  chima_rect rect;
-  chima_u32 id;
-  chima_bool was_packed;
-} chima_packed_rect;
-
-typedef enum chima_packer {
-  CHIMA_PACKER_Skyline_default = 0,
-  CHIMA_PACKER_Skyline_BL_sortHeight = CHIMA_PACKER_Skyline_default,
-  CHIMA_PACKER_Skyline_BF_sortHeight,
-} chima_packer;
-
-CHIMA_API chima_result chima_pack_rects(chima_context chima,
-                                        chima_u32 image_width,
-                                        chima_u32 image_height,
-                                        chima_packed_rect* rects,
-                                        chima_size rect_count);
-
-CHIMA_API chima_packer chima_set_packer(chima_context chima,
-                                        chima_packer packer);
+CHIMA_API void chima_destroy_spritesheet(chima_context chima, chima_spritesheet* sheet);
 
 typedef struct chima_uv_transf {
   chima_f32 x_lin, x_con;
@@ -624,10 +592,8 @@ typedef enum chima_uv_flags {
   _CHIMA_UV_FLAG_FORCE_32BIT = 0x7FFFFFFF
 } chima_uv_flags;
 
-CHIMA_API chima_uv_transf chima_calc_uv_transform(chima_u32 image_width,
-                                                  chima_u32 image_height,
-                                                  chima_rect rect,
-                                                  chima_bitfield flags);
+CHIMA_API chima_uv_transf chima_calc_uv_transform(chima_u32 image_width, chima_u32 image_height,
+                                                  chima_rect rect, chima_bitfield flags);
 
 /*! @} */
 
