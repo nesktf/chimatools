@@ -10,6 +10,7 @@ const char* chima_error_string(chima_result ret) {
     case CHIMA_FILE_OPEN_FAILURE: return "Failed to open file";
     case CHIMA_FILE_WRITE_FAILURE: return "Failed to write file";
     case CHIMA_FILE_EOF: return "Reached end of file";
+    case CHIMA_INVALID_FILE_FORMAT: return "Invalid file format";
     case CHIMA_IMAGE_PARSE_FAILURE: return "Failed to parse image data";
     case CHIMA_INVALID_VALUE: return "Invalid parameter provided";
     case CHIMA_UNSUPPORTED_FORMAT : return "Unsupported format provided";
@@ -72,6 +73,7 @@ chima_result chima_create_context(chima_context* chima,
   ctx->mem_user = alloc_funcs.user;
   ctx->mem_alloc = alloc_funcs.malloc;
   ctx->mem_realloc = alloc_funcs.realloc;
+  ctx->mem_free = alloc_funcs.free;
   ctx->atlas_grow_fac = ATLAS_GROW_FAC;
   ctx->atlas_initial = ATLAS_INIT_SIZE;
 

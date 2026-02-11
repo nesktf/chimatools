@@ -173,7 +173,7 @@ copy_texels:
     sprites[i].x = (chima_u32)rects[i].x;
     sprites[i].y = (chima_u32)rects[i].y;
     ret = chima_composite_image(atlas, images + i, sprites[i].x, sprites[i].y);
-    if (!ret) {
+    if (ret) {
       break; // propagate error
     }
   }
@@ -348,10 +348,13 @@ chima_result chima_write_image_file(chima_context chima, const chima_image* imag
                            image->data, flip_y, 1);
       break;
     }
+    case CHIMA_FILE_FORMAT_RAW: {
+      wrt = fwrite(image->data, image->extent.width*image->extent.height*image->channels, 1, f);
+    } break;
     default:
       return CHIMA_INVALID_VALUE;
   }
-  return wrt ? CHIMA_FILE_WRITE_FAILURE : CHIMA_NO_ERROR;
+  return wrt ? CHIMA_NO_ERROR : CHIMA_FILE_WRITE_FAILURE;
 }
 
 chima_result chima_write_image(chima_context chima, const chima_image* image,
@@ -575,5 +578,6 @@ void chima_destroy_image_anim(chima_context chima, chima_image_anim* anim) {
     CHIMA_FREE(anim->images[i].data);
   }
   CHIMA_FREE(anim->images);
+  CHIMA_FREE(anim->frametimes);
   memset(anim, 0, sizeof(chima_image_anim));
 }

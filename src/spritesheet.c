@@ -79,8 +79,11 @@ static chima_result do_sheet_add_images(chima_sheet_data data,
       int wrt = sprintf(nodes[i].name.data, "chima_image.%05zu", data->image_count + i);
       CHIMA_ASSERT(wrt);
       nodes[i].name.len = (chima_size)wrt;
-    } else {
+    } else if (image_count > 1){
       format_indexed_image_name(&nodes[i].name, name, name_len, i);
+    } else {
+      memcpy(nodes[i].name.data, name, name_len);
+      nodes[i].name.len = name_len;
     }
   }
   nodes[image_count - 1].next = data->image_head;
@@ -228,11 +231,13 @@ chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet
     ret = CHIMA_ALLOC_FAILURE;
     goto sheet_exit;
   }
-  chima_sprite_anim* anims = CHIMA_CALLOC(total_images, sizeof(chima_sprite_anim));
+  chima_sprite_anim* anims = CHIMA_CALLOC(data->anim_count, sizeof(chima_sprite_anim));
   if (!anims) {
     ret = CHIMA_ALLOC_FAILURE;
     goto free_sheet_sprites;
   }
+  memset(sprites, 0, total_images*sizeof(sprites[0]));
+  memset(anims, 0, data->anim_count*sizeof(anims[0]));
 
   // First pass, we copy all the images in a temporary buffer.
   {
@@ -242,7 +247,8 @@ chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet
     while (image_node) {
       memcpy(images+image_idx, image_node->image, sizeof(images[0]));
       // Assume the name is already in a copyable format
-      memcpy(image_node->name.data, sprites[image_idx].name.data, image_node->name.len);
+      memcpy(sprites[image_idx].name.data, image_node->name.data, image_node->name.len);
+      sprites[image_idx].name.len = image_node->name.len;
       sprites[image_idx].frametime = image_node->frametime;
       ++image_idx;
       image_node = image_node->next;
@@ -262,6 +268,7 @@ chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet
         sprites[image_idx+i].frametime = anim_node->anim->frametimes[i];
       }
       memcpy(anims[anim_idx].name.data, anim_node->name.data, anim_node->name.len);
+      anims[anim_idx].name.len = anim_node->name.len;
       anims[anim_idx].sprite_start = image_idx;
       anims[anim_idx].sprite_count = anim_image_count;
       image_idx += anim_image_count; 
@@ -274,7 +281,7 @@ chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet
   // Once we have our images copied to a buffer, we generate an atlas
   ret = chima_gen_atlas_image(chima, &sheet->atlas, rects, padding, background_color, images,
                               total_images);
-  if (!ret) {
+  if (ret) {
     goto free_sheet_anims;
   }
 
@@ -283,7 +290,7 @@ chima_result chima_gen_spritesheet(chima_context chima, chima_spritesheet* sheet
     memcpy(&sprites[i].rect, rects+i, sizeof(rects[0]));
   }
 
-  sheet->sprite_count = data->image_count;
+  sheet->sprite_count = total_images;
   sheet->anim_count = data->anim_count;
   sheet->sprites = sprites;
   sheet->anims = anims;
@@ -703,7 +710,7 @@ chima_uv_transf chima_calc_uv_transform(chima_u32 image_width,
   */
   chima_uv_transf out;
   const chima_bool flip_x = (flags & CHIMA_UV_FLAG_FLIP_X);
-  const chima_bool flip_y = (flags & CHIMA_UV_FLAG_FLIP_X);
+  const chima_bool flip_y = (flags & CHIMA_UV_FLAG_FLIP_Y);
   const chima_f32 uv_scale_x =
     (flip_x*-1.f + !flip_x*1.f)*(chima_f32)rect.width/(chima_f32)image_width;
   const chima_f32 uv_off_x = (chima_f32)rect.x/(chima_f32)image_width;

@@ -5,23 +5,25 @@ LUA_BUILD_DIR := $(BUILD_DIR)/lua
 PREFIX 				?= /usr/local
 DESTDIR 			?= $(BUILD_DIR)/out
 
-CC 			:= gcc
-AR 			:= ar rcs
-SRC_DIR	:= src
-CFLAGS 	:= -std=c11 -Wall -Wextra -I$(SRC_DIR) -I$(INCLUDE_DIR)
-LDFLAGS := -lm
+CC 			 := gcc
+AR 			 := ar rcs
+SRC_DIR	 := src
+TEST_DIR := test
+CFLAGS 	 := -std=c11 -Wall -Wextra -I$(SRC_DIR) -I$(INCLUDE_DIR)
+LDFLAGS  := -lm
 
-LIB_CFLAGS	:= $(CFLAGS) -fPIC
+LIB_CFLAGS	:= $(CFLAGS) -fPIC -g
 LIB_SHARED	:= $(BUILD_DIR)/lib$(PROJNAME).so
 LIB_STATIC 	:= $(BUILD_DIR)/lib$(PROJNAME).a
 
 BIN_CFLAGS 	:= $(CFLAGS)
 BIN_LDFLAGS := -L$(BUILD_DIR) -l$(PROJNAME)
+BIN_FLAGS   := -g
 
-LIB_SRCS	:= $(SRC_DIR)/chimatools.c
+LIB_SRCS	:= $(SRC_DIR)/core.c $(SRC_DIR)/image.c $(SRC_DIR)/spritesheet.c
 LIB_OBJS  := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/lib_%.o, $(LIB_SRCS))
 
-BIN_SRCS 	:= $(SRC_DIR)/example.c
+BIN_SRCS 	:= $(TEST_DIR)/example.c
 BIN_OBJS	:= $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/bin_%.o, $(BIN_SRCS))
 BIN_EXE		:= $(BUILD_DIR)/chimaexample
 
@@ -68,7 +70,7 @@ $(BUILD_DIR)/:
 bin: $(BIN_EXE)
 
 $(BIN_EXE): $(BIN_OBJS) $(LIB_SHARED)
-	$(CC) $^ $(BIN_LDFLAGS) -o $@
+	$(CC) $^ -I$(INCLUDE_DIR) $(BIN_LDFLAGS) $(BIN_FLAGS) -o $@
 
 $(BUILD_DIR)/bin_%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)/
 	$(CC) $(BIN_CFLAGS) -c $< -o $@

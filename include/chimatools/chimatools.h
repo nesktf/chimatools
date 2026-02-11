@@ -318,7 +318,7 @@ typedef enum chima_result {
   /* Reached end of file.
    */
   CHIMA_FILE_EOF,
-  /* Invalid file format
+  /* Invalid file format.
    */
   CHIMA_INVALID_FILE_FORMAT,
   /* Failed to parse image data.
