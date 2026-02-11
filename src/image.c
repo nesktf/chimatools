@@ -41,42 +41,6 @@ chima_bool chima_set_flip_y(chima_context chima, chima_bool flip_y) {
   return old;
 }
 
-/*
-static void rename_image(const char* name, chima_image* image, size_t fmt_count)
-{ if (name) { image->name.length = strlen(name); memcpy(image->name.data, name,
-image->name.length+1); // copy null terminator } else { int len =
-snprintf(image->name.data, CHIMA_STRING_MAX_SIZE, "chima_image%lu", fmt_count);
-    CHIMA_ASSERT(len > 0);
-    image->name.length = (size_t)len-1; // No null terminator
-  }
-}
-
-static void rename_anim(const char* name, chima_anim* anim, size_t fmt_count) {
-  char name_fmt_buff[1024] = {0};
-  if (name) {
-    anim->name.length = strlen(name);
-    memcpy(anim->name.data, name, anim->name.length+1); // copy null terminator
-  } else {
-    int len = snprintf(anim->name.data, CHIMA_STRING_MAX_SIZE,
-                       "chima_anim%lu", fmt_count);
-    CHIMA_ASSERT(len > 0);
-    anim->name.length = (size_t)len-1; // No null terminator
-  }
-
-  const char fmt[] = ".%lu";
-  memcpy(name_fmt_buff, anim->name.data, anim->name.length);
-  memcpy(name_fmt_buff+anim->name.length, fmt, sizeof(fmt));
-  // Names each animation like "<anim_name>.<image_idx>"
-  for (size_t i = 0; i < anim->image_count; ++i) {
-    chima_image* image = anim->images+i;
-    int len = snprintf(image->name.data, CHIMA_STRING_MAX_SIZE,
-                       name_fmt_buff, i);
-    CHIMA_ASSERT(len > 0);
-    image->name.length = (size_t)len;
-  }
-}
-*/
-
 chima_result chima_gen_blank_image(chima_context chima, chima_image* image, chima_u32 width,
                                    chima_u32 height, chima_u32 channels, chima_image_depth depth,
                                    chima_color background_color) {
@@ -325,44 +289,84 @@ chima_result chima_load_image_mem(chima_context chima, chima_image* image, chima
   return CHIMA_NO_ERROR;
 }
 
-chima_result chima_write_image(chima_context chima, const chima_image* image,
-                               chima_image_format format, const char* path) {
-  if (!chima || !image || !path) {
-    return CHIMA_INVALID_VALUE;
-  }
-
+chima_size chima__write_atlas_file(chima_context chima, FILE* f, chima_u32 w, chima_u32 h,
+                                   chima_u32 ch, chima_image_format format, const void* data) {
+  chima_size wrt;
   int flip_y = (chima->flags & CHIMA_CTX_FLAG_FLIP_Y);
-  size_t st = image->extent.width * image->channels;
-  int wrt;
   switch (format) {
+    case CHIMA_FILE_FORMAT_RAW: {
+      wrt = fwrite(data, w*h*ch, 1, f);
+    } break;
     case CHIMA_FILE_FORMAT_PNG: {
+      chima_size stride = w*ch;
       stbiw_user_alloc al;
       al.user = chima->mem_user;
       al.malloc = chima->mem_alloc;
       al.realloc = chima->mem_realloc;
       al.free = chima->mem_free;
-      wrt = stbi_write_png(&al, path, image->extent.width, image->extent.height, image->channels,
-                           image->data, st, flip_y, 8, -1);
+      wrt = stbi_write_png_file(&al, f, w, h, ch, data, stride, flip_y, 8, -1);
+    } break;
+    case CHIMA_FILE_FORMAT_BMP: {
+      wrt = stbi_write_bmp_file(f, w, h, ch, data, flip_y);
+    } break;
+    case CHIMA_FILE_FORMAT_TGA: {
+      wrt = stbi_write_tga_file(f, w, h, ch, data, flip_y, 1);
+    } break;
+    default:
+      CHIMA_UNREACHABLE();
+  }
+  return wrt;
+}
+
+chima_result chima_write_image_file(chima_context chima, const chima_image* image,
+                                    chima_image_format format, FILE* f) {
+  if (!chima || !image || !f) {
+    return CHIMA_INVALID_VALUE;
+  }
+
+  int flip_y = (chima->flags & CHIMA_CTX_FLAG_FLIP_Y);
+  int wrt;
+  switch (format) {
+    case CHIMA_FILE_FORMAT_PNG: {
+      chima_size stride= image->extent.width * image->channels;
+      stbiw_user_alloc al;
+      al.user = chima->mem_user;
+      al.malloc = chima->mem_alloc;
+      al.realloc = chima->mem_realloc;
+      al.free = chima->mem_free;
+      wrt = stbi_write_png_file(&al, f, image->extent.width, image->extent.height, image->channels,
+                           image->data, stride, flip_y, 8, -1);
       break;
     }
     case CHIMA_FILE_FORMAT_BMP: {
-      wrt = stbi_write_bmp(path, image->extent.width, image->extent.height, image->channels,
+      wrt = stbi_write_bmp_file(f, image->extent.width, image->extent.height, image->channels,
                            image->data, flip_y);
       break;
     }
     case CHIMA_FILE_FORMAT_TGA: {
-      wrt = stbi_write_tga(path, image->extent.width, image->extent.height, image->channels,
+      wrt = stbi_write_tga_file(f, image->extent.width, image->extent.height, image->channels,
                            image->data, flip_y, 1);
       break;
     }
     default:
       return CHIMA_INVALID_VALUE;
   }
-  if (!wrt) {
-    return CHIMA_FILE_WRITE_FAILURE;
+  return wrt ? CHIMA_FILE_WRITE_FAILURE : CHIMA_NO_ERROR;
+}
+
+chima_result chima_write_image(chima_context chima, const chima_image* image,
+                               chima_image_format format, const char* path) {
+  if (!chima || !image || !path) {
+    return CHIMA_INVALID_VALUE;
   }
 
-  return CHIMA_NO_ERROR;
+  FILE* f = fopen(path, "wb");
+  if (!f) {
+    return CHIMA_FILE_OPEN_FAILURE;
+  }
+  chima_result ret = chima_write_image_file(chima, image, format, f);
+  fclose(f);
+  return ret;
 }
 
 chima_result chima_composite_image(chima_image* dst, const chima_image* src, chima_u32 xpos,

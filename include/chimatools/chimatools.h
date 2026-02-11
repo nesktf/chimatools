@@ -70,9 +70,7 @@ extern "C" {
  * @{ */
 #include <stddef.h>
 #include <stdint.h>
-#ifndef CHIMA_NO_STDIO
 #include <stdio.h>
-#endif
 
 /*! @brief One.
  *
@@ -320,6 +318,9 @@ typedef enum chima_result {
   /* Reached end of file.
    */
   CHIMA_FILE_EOF,
+  /* Invalid file format
+   */
+  CHIMA_INVALID_FILE_FORMAT,
   /* Failed to parse image data.
    */
   CHIMA_IMAGE_PARSE_FAILURE,
@@ -479,10 +480,8 @@ CHIMA_API chima_result chima_gen_atlas_image(chima_context chima, chima_image* a
 CHIMA_API chima_result chima_load_image(chima_context chima, chima_image* image,
                                         chima_image_depth depth, const char* path);
 
-#ifndef CHIMA_NO_STDIO
 CHIMA_API chima_result chima_load_image_file(chima_context chima, chima_image* image,
                                              chima_image_depth depth, FILE* f);
-#endif
 
 CHIMA_API chima_result chima_load_image_mem(chima_context chima, chima_image* image,
                                             chima_image_depth depth, const chima_u8* buffer,
@@ -504,10 +503,9 @@ typedef struct chima_image_anim {
 
 CHIMA_API chima_result chima_load_image_anim(chima_context chima, chima_image_anim* anim,
                                              const char* path);
-#ifndef CHIMA_NO_STDIO
+
 CHIMA_API chima_result chima_load_image_anim_file(chima_context chima, chima_image_anim* anim,
                                                   FILE* f);
-#endif
 
 CHIMA_API void chima_destroy_image_anim(chima_context chima, chima_image_anim* anim);
 
@@ -566,16 +564,14 @@ CHIMA_API chima_result chima_gen_spritesheet(chima_context chima, chima_spritesh
 CHIMA_API chima_result chima_load_spritesheet(chima_context chima, chima_spritesheet* sheet,
                                               const char* path);
 
-#ifndef CHIMA_NO_STDIO
 CHIMA_API chima_result chima_load_spritesheet_file(chima_context chima, chima_spritesheet* sheet,
                                                    FILE* f);
-#endif
 
 CHIMA_API chima_result chima_load_spritesheet_mem(chima_context chima, chima_spritesheet* sheet,
                                                   const chima_u8* buffer, chima_size buffer_len);
 
-CHIMA_API chima_result chima_write_spritesheet(const chima_spritesheet* sheet, const char* path,
-                                               chima_image_format format);
+CHIMA_API chima_result chima_write_spritesheet(chima_context chima, const chima_spritesheet* sheet,
+                                               const char* path, chima_image_format format);
 
 CHIMA_API void chima_destroy_spritesheet(chima_context chima, chima_spritesheet* sheet);
 

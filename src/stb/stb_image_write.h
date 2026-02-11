@@ -176,11 +176,17 @@ typedef struct stbiw_user_alloc {
 } stbiw_user_alloc;
 
 #ifndef STBI_WRITE_NO_STDIO
+#include <stdio.h>
+
 STBIWDEF int stbi_write_png(stbiw_user_alloc const* al, char const *filename, int w, int h, int comp, const void  *data, int stride_in_bytes, int flip_y, int compression_level, int force_filter);
 STBIWDEF int stbi_write_bmp(char const *filename, int w, int h, int comp, const void  *data, int flip_y);
 STBIWDEF int stbi_write_tga(char const *filename, int w, int h, int comp, const void  *data, int flip_y, int with_rle);
 STBIWDEF int stbi_write_hdr(stbiw_user_alloc const* al, char const *filename, int w, int h, int comp, const float *data, int flip_y);
 STBIWDEF int stbi_write_jpg(char const *filename, int x, int y, int comp, const void  *data, int quality, int flip_y);
+
+STBIWDEF int stbi_write_png_file(stbiw_user_alloc const* al, FILE* f, int w, int h, int comp, const void  *data, int stride_in_bytes, int flip_y, int compression_level, int force_filter);
+STBIWDEF int stbi_write_bmp_file(FILE* f, int w, int h, int comp, const void  *data, int flip_y);
+STBIWDEF int stbi_write_tga_file(FILE* f, int w, int h, int comp, const void  *data, int flip_y, int with_rle);
 
 #ifdef STBIW_WINDOWS_UTF8
 STBIWDEF int stbiw_convert_wchar_to_utf8(char *buffer, size_t bufferlen, const wchar_t* input);
@@ -197,6 +203,7 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
 
 #endif//INCLUDE_STB_IMAGE_WRITE_H
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #ifdef STB_IMAGE_WRITE_IMPLEMENTATION
 
 #ifdef _WIN32
@@ -207,10 +214,6 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
    #define _CRT_NONSTDC_NO_DEPRECATE
    #endif
 #endif
-
-#ifndef STBI_WRITE_NO_STDIO
-#include <stdio.h>
-#endif // STBI_WRITE_NO_STDIO
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -335,6 +338,11 @@ static int stbi__start_write_file(stbi__write_context *s, const char *filename)
    FILE *f = stbiw__fopen(filename, "wb");
    stbi__start_write_callbacks(s, stbi__stdio_write, (void *) f);
    return f != NULL;
+}
+static int stbi__append_write_file(stbi__write_context *s, FILE* f)
+{
+  stbi__start_write_callbacks(s, stbi__stdio_write, (void*)f);
+  return f != NULL;
 }
 
 static void stbi__end_write_file(stbi__write_context *s)
@@ -528,6 +536,15 @@ STBIWDEF int stbi_write_bmp(char const *filename, int x, int y, int comp, const 
    } else
       return 0;
 }
+STBIWDEF int stbi_write_bmp_file(FILE* f, int x, int y, int comp, const void  *data, int flip_y)
+{
+   stbi__write_context s = { 0 };
+   if (stbi__append_write_file(&s,f)) {
+      int r = stbi_write_bmp_core(&s, x, y, comp, data, flip_y);
+      return r;
+   } else
+      return 0;
+}
 #endif //!STBI_WRITE_NO_STDIO
 
 static int stbi_write_tga_core(stbi__write_context *s, int x, int y, int comp, void *data, int with_rle, int flip_y)
@@ -623,6 +640,14 @@ STBIWDEF int stbi_write_tga(char const *filename, int x, int y, int comp, const 
    if (stbi__start_write_file(&s,filename)) {
       int r = stbi_write_tga_core(&s, x, y, comp, (void *) data, with_rle, flip_y);
       stbi__end_write_file(&s);
+      return r;
+   } else
+      return 0;
+}
+STBIWDEF int stbi_write_tga_file(FILE* f, int x, int y, int comp, const void  *data, int flip_y, int with_rle) {
+   stbi__write_context s = { 0 };
+   if (stbi__append_write_file(&s,f)) {
+      int r = stbi_write_tga_core(&s, x, y, comp, (void *) data, flip_y, with_rle);
       return r;
    } else
       return 0;
@@ -1226,6 +1251,17 @@ STBIWDEF int stbi_write_png(stbiw_user_alloc const* al, char const *filename, in
    if (!f) { STBIW_FREE(al, png); return 0; }
    fwrite(png, 1, len, f);
    fclose(f);
+   STBIW_FREE(al, png);
+   return 1;
+}
+STBIWDEF int stbi_write_png_file(stbiw_user_alloc const* al, FILE* f, int x, int y, int comp, const void  *data, int stride_in_bytes, int flip_y, int compression_level, int force_filter) {
+   int len;
+   unsigned char *png = stbi_write_png_to_mem(al, (const unsigned char *) data, stride_in_bytes, x, y, comp, &len, flip_y, compression_level, force_filter);
+   al = al ? al : &stbiw__default_alloc;
+   if (png == NULL) return 0;
+
+   if (!f) { STBIW_FREE(al, png); return 0; }
+   fwrite(png, 1, len, f);
    STBIW_FREE(al, png);
    return 1;
 }

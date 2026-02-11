@@ -11,15 +11,13 @@
 
 #define CHIMA_STATIC_ASSERT(cond_) _Static_assert(cond_, #cond_)
 #define CHIMA_ASSERT(cond_)        assert(cond_)
+#define CHIMA_TODO()               CHIMA_ASSERT(0 && "TODO")
 
-#define CHIMA_SET_FLAG(cond_, flags_, flag_) \
-  cond_ ? (flags_ | flag_) : (flags_ & ~flag_)
+#define CHIMA_SET_FLAG(cond_, flags_, flag_) cond_ ? (flags_ | flag_) : (flags_ & ~flag_)
 
-#define CHIMA_CLAMP(val_, min_, max_) \
-  val_ > max_ ? max_ : (val_ < min_ ? min_ : val_)
+#define CHIMA_CLAMP(val_, min_, max_) val_ > max_ ? max_ : (val_ < min_ ? min_ : val_)
 
-static const char CHIMA_MAGIC[] = {0x89, 'C', 'H', 'I', 'M', 'A',
-                                   0x89, 'A', 'S', 'S', 'E', 'T'};
+static const char CHIMA_MAGIC[] = {0x89, 'C', 'H', 'I', 'M', 'A', 0x89, 'A', 'S', 'S', 'E', 'T'};
 
 // TODO: Add a scratch arena?
 typedef struct chima_context_ {
@@ -30,16 +28,14 @@ typedef struct chima_context_ {
   chima_bitfield flags;
   chima_f32 atlas_grow_fac;
   chima_u32 atlas_initial;
-  chima_u32 image_count;
-  chima_u32 anim_count;
 } chima_context_;
 
-static inline chima_alloc alloc_from_chima(chima_context chima) {
-  return (chima_alloc){.user = chima->mem_user,
-                       .malloc = chima->mem_alloc,
-                       .realloc = chima->mem_realloc,
-                       .free = chima->mem_free};
-}
+typedef enum file_asset_type {
+  ASSET_TYPE_SPRITESHEET = 0,
+
+  _ASSET_TYPE_COUNT,
+  _ASSET_TYPE_FORCE_32BIT = 0x7FFFFFFF,
+} file_asset_type;
 
 typedef enum chima_ctx_flags {
   CHIMA_CTX_FLAG_NONE = 0x0000,
@@ -47,6 +43,9 @@ typedef enum chima_ctx_flags {
 
   _CHIMA_CTX_FLAG_FORCE_32BIT = 0x7FFFFFFF,
 } chima_ctx_flags;
+
+chima_size chima__write_atlas_file(chima_context chima, FILE* f, chima_u32 w, chima_u32 h,
+                                   chima_u32 ch, chima_image_format format, const void* data);
 
 #define CHIMA_MALLOC(size_) chima->mem_alloc(chima->mem_user, size_)
 
