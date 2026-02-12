@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./chimatools.h"
+#include <chimatools/chimatools.h>
 
 #ifndef CHIMA_ASSERT
 #include <cassert>

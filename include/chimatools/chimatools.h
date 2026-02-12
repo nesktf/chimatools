@@ -1,6 +1,8 @@
 #ifndef CHIMATOOLS_H_
 #define CHIMATOOLS_H_
 
+#include <chimatools/config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,29 +44,6 @@ extern "C" {
 #else
 #define CHIMA_API
 #endif
-
-/*! @name chimatools version macros
- * @{ */
-/*! @brief chimatools major version.
- *
- *  Incremented when the API is changed in non-compatible ways.
- */
-#define CHIMA_VERSION_MAJOR 1
-/*! @brief chimatools minor version.
- *
- *  Incremented when the API is changed in backward-compatible ways.
- *
- *  @ingroup init
- */
-#define CHIMA_VERSION_MINOR 0
-/*! @brief chimatools patch version.
- *
- *  Incremented for bug fixes that do not change the API.
- *
- *  @ingroup init
- */
-#define CHIMA_VERSION_PATCH 0
-/*! @} */
 
 /*! @name chimatools C declarations and definitions
  * @{ */

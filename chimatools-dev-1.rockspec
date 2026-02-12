@@ -23,8 +23,4 @@ build = {
     ["chimatools.lib"] = "build/lua/chimatools/lib.lua",
     ["chimatools.sprite"] = "build/lua/chimatools/sprite.lua",
   },
-  -- Disabled until i manage to instal luajit script binaries
-  -- install = {
-  --   bin = { "build/lua/chimasprite"}
-  -- }
 }
