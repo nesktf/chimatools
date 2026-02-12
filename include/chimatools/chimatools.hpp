@@ -26,6 +26,7 @@
     }                                       \
   }
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -88,7 +89,23 @@ struct color : public chima_color {
   color() noexcept : chima_color() {}
 
   color(chima_f32 r, chima_f32 g, chima_f32 b, chima_f32 a = 1.f) noexcept :
-      chima_color{r, g, b, a} {}
+      chima_color{std::clamp(r, 0.f, 1.f), std::clamp(g, 0.f, 1.f), std::clamp(b, 0.f, 1.f),
+                  std::clamp(a, 0.f, 1.f)} {}
+};
+
+// Wrapper for `chima_extent2d`
+struct extent2d : public chima_extent2d {
+  extent2d() noexcept : chima_extent2d() {}
+
+  extent2d(chima_u32 width, chima_u32 height) noexcept : chima_extent2d{width, height} {}
+};
+
+// Wrapper for `chima_rect`
+struct rect : public chima_rect {
+  rect() noexcept : chima_rect() {}
+
+  rect(chima_u32 x, chima_u32 y, chima_u32 width, chima_u32 height) noexcept :
+      chima_rect{x, y, width, height} {}
 };
 
 // Load a `chima_string` inside a `std::string_view`
@@ -484,6 +501,11 @@ public:
     const auto res = chima_composite_image(&get(), &src, xpos, ypos);
     CHIMA_FILL_ERR_OR_THROW(err, res);
   }
+
+  void composite(const image& src, chima_u32 xpos, chima_u32 ypos, ::chima::error* err = nullptr) {
+    const auto res = chima_composite_image(&get(), &src.get(), xpos, ypos);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+  }
 };
 
 CHIMA_DEFINE_DELETER(::chima::image, image) {
@@ -614,6 +636,10 @@ public:
 #endif
 #endif
 };
+
+CHIMA_DEFINE_DELETER(::chima::image_anim, anim) {
+  ::chima::image_anim::destroy(_chima, anim);
+}
 
 class sheet_data {
 private:
@@ -1009,6 +1035,13 @@ public:
 
   chima_spritesheet& get() noexcept {
     return const_cast<chima_spritesheet&>(std::as_const(*this).get());
+  }
+
+public:
+  void write(chima_context chima, chima_image_format format, const char* path,
+             ::chima::error* err = nullptr) const {
+    const auto res = chima_write_spritesheet(chima, &get(), format, path);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
   }
 
 public:

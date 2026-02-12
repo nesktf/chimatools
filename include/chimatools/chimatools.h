@@ -470,7 +470,8 @@ typedef struct chima_image {
 
 CHIMA_API chima_result chima_gen_blank_image(chima_context chima, chima_image* image,
                                              chima_u32 width, chima_u32 height, chima_u32 channels,
-                                             chima_image_depth depth, chima_color background_color);
+                                             chima_image_depth depth,
+                                             chima_color background_color);
 
 CHIMA_API chima_result chima_gen_atlas_image(chima_context chima, chima_image* atlas,
                                              chima_rect* sprites, chima_u32 padding,
@@ -571,7 +572,7 @@ CHIMA_API chima_result chima_load_spritesheet_mem(chima_context chima, chima_spr
                                                   const chima_u8* buffer, chima_size buffer_len);
 
 CHIMA_API chima_result chima_write_spritesheet(chima_context chima, const chima_spritesheet* sheet,
-                                               const char* path, chima_image_format format);
+                                               chima_image_format format, const char* path);
 
 CHIMA_API void chima_destroy_spritesheet(chima_context chima, chima_spritesheet* sheet);
 

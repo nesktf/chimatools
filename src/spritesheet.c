@@ -536,8 +536,7 @@ chima_result chima_load_spritesheet(chima_context chima,
 }
 
 chima_result chima_write_spritesheet(chima_context chima, const chima_spritesheet* sheet,
-                                     const char* path,
-                                     chima_image_format format) {
+                                     chima_image_format format, const char* path) {
   if (sheet->atlas.depth != CHIMA_DEPTH_8U) {
     format = CHIMA_FILE_FORMAT_RAW; // for now, we only support writting non u8 depths as RAW bytes
   }
