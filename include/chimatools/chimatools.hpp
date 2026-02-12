@@ -17,6 +17,14 @@
     throw err;                    \
   }
 #endif
+#define CHIMA_FILL_ERR_OR_THROW(err_, res_) \
+  if (res_ != CHIMA_NO_ERROR) {             \
+    if (err_) {                             \
+      (*err_) = res_;                       \
+    } else {                                \
+      CHIMA_THROW(::chima::error(res_));    \
+    }                                       \
+  }
 
 #include <cstring>
 #include <optional>
@@ -115,7 +123,7 @@ protected:
   }
 
   explicit context_base(const chima_alloc* alloc) {
-    const chima_result ret = chima_create_context(&_chima, alloc);
+    const auto ret = chima_create_context(&_chima, alloc);
     CHIMA_THROW_IF(ret != CHIMA_NO_ERROR, ::chima::error(ret));
   }
 
@@ -123,7 +131,7 @@ protected:
   static std::optional<Derived> create(const chima_alloc* alloc = nullptr,
                                        ::chima::error* err = nullptr) noexcept {
     chima_context chima;
-    const chima_result ret = chima_create_context(&chima, alloc);
+    const auto ret = chima_create_context(&chima, alloc);
     if (ret != CHIMA_NO_ERROR) {
       if (err) {
         *err = ret;
@@ -293,7 +301,7 @@ public:
   }
 };
 
-constexpr chima_size image_bytes(const chima_image& img) {
+constexpr inline chima_size image_bytes(const chima_image& img) noexcept {
   constexpr auto sizes = std::to_array<chima_size>({
     sizeof(chima_u8),
     sizeof(chima_u16),
@@ -465,12 +473,16 @@ public:
   chima_u32 channels() const noexcept { return get().channels; }
 
 public:
-  chima_result write(chima_context chima, chima_image_format format, const char* path) const {
-    return chima_write_image(chima, &get(), format, path);
+  void write(chima_context chima, chima_image_format format, const char* path,
+             ::chima::error* err = nullptr) const {
+    const auto res = chima_write_image(chima, &get(), format, path);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
   }
 
-  chima_result composite(const chima_image& src, chima_u32 xpos, chima_u32 ypos) {
-    return chima_composite_image(&get(), &src, xpos, ypos);
+  void composite(const chima_image& src, chima_u32 xpos, chima_u32 ypos,
+                 ::chima::error* err = nullptr) {
+    const auto res = chima_composite_image(&get(), &src, xpos, ypos);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
   }
 };
 
@@ -648,43 +660,144 @@ public:
   }
 
 public:
-  sheet_data& add_image(const chima_image& image, const char* name) {
+  sheet_data& add_image(const chima_image& image, const char* name,
+                        ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_image(get(), &image, name);
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
-  sheet_data& add_image(const chima_image& image, chima_string_view name) {
+  sheet_data& add_image(const chima_image& image, chima_string_view name,
+                        ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_image_sv(get(), &image, name);
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
-  sheet_data& add_image(const chima_image& image, std::string_view name) {
+  sheet_data& add_image(const chima_image& image, std::string_view name,
+                        ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_image_sv(get(), &image, ::chima::from_string_view(name));
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
   sheet_data& add_images(const chima_image* images, const chima_u32* frametimes, chima_size count,
-                         const char* basename) {
+                         const char* basename, ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_images(get(), images, frametimes, count, basename);
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
   sheet_data& add_images(const chima_image* images, const chima_u32* frametimes, chima_size count,
-                         chima_string_view basename) {
+                         chima_string_view basename, ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_images_sv(get(), images, frametimes, count, basename);
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
   sheet_data& add_images(const chima_image* images, const chima_u32* frametimes, chima_size count,
-                         std::string_view basename) {
+                         std::string_view basename, ::chima::error* err = nullptr) {
     const auto res = chima_sheet_add_images_sv(get(), images, frametimes, count,
                                                ::chima::from_string_view(basename));
-    CHIMA_THROW_IF(res != CHIMA_NO_ERROR, ::chima::error(res));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+public:
+  sheet_data& add_image(const ::chima::image& image, const char* name,
+                        ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image(get(), &image.get(), name);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_image(const ::chima::image& image, chima_string_view name,
+                        ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image_sv(get(), &image.get(), name);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_image(const ::chima::image& image, std::string_view name,
+                        ::chima::error* err = nullptr) {
+    const auto res =
+      chima_sheet_add_image_sv(get(), &image.get(), ::chima::from_string_view(name));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+#ifndef CHIMA_NO_DOWNCASTING
+  sheet_data& add_images(const ::chima::image* images, const chima_u32* frametimes,
+                         chima_size count, const char* basename, ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_images(get(), reinterpret_cast<const chima_image*>(images),
+                                            frametimes, count, basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_images(const ::chima::image* images, const chima_u32* frametimes,
+                         chima_size count, chima_string_view basename,
+                         ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_images_sv(get(), reinterpret_cast<const chima_image*>(images),
+                                               frametimes, count, basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_images(const ::chima::image* images, const chima_u32* frametimes,
+                         chima_size count, std::string_view basename,
+                         ::chima::error* err = nullptr) {
+    const auto res =
+      chima_sheet_add_images_sv(get(), reinterpret_cast<const chima_image*>(images), frametimes,
+                                count, ::chima::from_string_view(basename));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+#endif
+
+public:
+  sheet_data& add_anim(const chima_image_anim* anim, const char* basename,
+                       ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image_anim(get(), anim, basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_anim(const chima_image_anim* anim, chima_string_view basename,
+                       ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image_anim_sv(get(), anim, basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_anim(const chima_image_anim* anim, std::string_view basename,
+                       ::chima::error* err = nullptr) {
+    const auto res =
+      chima_sheet_add_image_anim_sv(get(), anim, ::chima::from_string_view(basename));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+public:
+  sheet_data& add_anim(const ::chima::image_anim& anim, const char* basename,
+                       ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image_anim(get(), &anim.get(), basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_anim(const ::chima::image_anim& anim, chima_string_view basename,
+                       ::chima::error* err = nullptr) {
+    const auto res = chima_sheet_add_image_anim_sv(get(), &anim.get(), basename);
+    CHIMA_FILL_ERR_OR_THROW(err, res);
+    return *this;
+  }
+
+  sheet_data& add_anim(const ::chima::image_anim& anim, std::string_view basename,
+                       ::chima::error* err = nullptr) {
+    const auto res =
+      chima_sheet_add_image_anim_sv(get(), &anim.get(), ::chima::from_string_view(basename));
+    CHIMA_FILL_ERR_OR_THROW(err, res);
     return *this;
   }
 
