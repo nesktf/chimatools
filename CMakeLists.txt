@@ -77,6 +77,9 @@ install(EXPORT ${PROJECT_NAME}-config
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/${PROJECT_NAME}/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
 
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/xdg/chima-asset.xml
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages)
+
 if (CHIMA_BUILD_EXAMPLES)
   message(STATUS "chimatools: Examples enabled")
   add_subdirectory("${CHIMA_DIR}/examples")
