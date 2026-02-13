@@ -1,8 +1,6 @@
 #ifndef CHIMATOOLS_H_
 #define CHIMATOOLS_H_
 
-#include <chimatools/config.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,16 +49,28 @@ extern "C" {
 #include <stdint.h>
 #include <stdio.h>
 
-/*! @brief One.
+/*! @brief chimatools major version.
  *
- *  Just the constant 1.
+ *  Modified when API breaking changes are introduced.
+ */
+#define CHIMA_VER_MAJ 1
+/*! @brief chimatools minor version
+ *
+ *  Modified when non-API breaking changes are introduced.
+ */
+#define CHIMA_VER_MIN 0
+/*! @brief chimatools revision version
+ *
+ *  Modified for patches that don't break the API.
+ */
+#define CHIMA_VER_REV 0
+
+/*! @brief One.
  *
  *  @ingroup core
  */
 #define CHIMA_TRUE  1
 /*! @brief Zero.
- *
- *  Just the constant 0.
  *
  *  @ingroup core
  */
@@ -68,57 +78,41 @@ extern "C" {
 
 /*! @brief Alias for unsigned bytes.
  *
- *  Alias for unsigned bytes.
- *
  *  @ingroup core
  */
 typedef uint8_t chima_u8;
 /*! @brief Alias for unsigned 2 byte integers.
- *
- *  Alias for unsigned 2 byte integers.
  *
  *  @ingroup core
  */
 typedef uint16_t chima_u16;
 /*! @brief Alias for unsigned 4 byte integers.
  *
- *  Alias for unsigned 4 byte integers
- *
  *  @ingroup core
  */
 typedef uint32_t chima_u32;
 /*! @brief Alias for 4 byte floats.
- *
- *  Alias for 4 byte floats
  *
  *  @ingroup core
  */
 typedef float chima_f32;
 /*! @brief Alias for size_t.
  *
- *  Alias for size_t
- *
  *  @ingroup core
  */
 typedef size_t chima_size;
 /*! @brief Alias for booleans.
- *
- *  Alias for booleans
  *
  *  @ingroup core
  */
 typedef uint32_t chima_bool;
 /*! @brief Alias for 4 byte bitfields.
  *
- *  Alias for 4 byte bitfields
- *
  *  @ingroup core
  */
 typedef chima_u32 chima_bitfield;
 
 /*! @brief Function pointer used for internal allocations.
- *
- *  Function pointer used for internal allocations.
  *
  *  If your function returns `NULL`, a `CHIMA_ALLOC_FAILURE` will be produced.
  *
@@ -140,8 +134,6 @@ typedef chima_u32 chima_bitfield;
 typedef void* (*PFN_chima_malloc)(void* user, size_t size);
 
 /*! @brief Function pointer used for internal reallocations.
- *
- *  Function pointer used for internal reallocations.
  *
  *  If your function returns `NULL`, a `CHIMA_ALLOC_FAILURE` will be produced.
  *
@@ -166,8 +158,6 @@ typedef void* (*PFN_chima_realloc)(void* user, void* ptr, size_t oldsz, size_t n
 
 /*! @brief Function pointer used for freeing internal allocations.
  *
- *  Function pointer used for freeing internal allocations.
- *
  *  @thread_safety Does not need to be thread safe as long as you use your
  *  `chima_context` on a single thread.
  *
@@ -183,8 +173,8 @@ typedef void (*PFN_chima_free)(void* user, void* ptr);
 
 /*! @brief Set of user-defined allocation callbacks.
  *
- *  Set of user-defined allocation callbacks. All functions should be
- *  valid (not `NULL`). The `user` parameter is optional.
+ *  All functions should be valid (not `NULL`). The `user`
+ *  parameter is optional.
  *
  *  @ingroup core
  */
@@ -208,8 +198,8 @@ typedef struct chima_alloc {
 
 /*! @brief Opaque chimatools context object
  *
- *  Opaque context object. Allocated using the user provided `chima_alloc` or
- * the default allocator if none is provided.
+ *  Allocated using the user provided `chima_alloc` or
+ *  the default allocator if none is provided.
  *
  *  Holds global settings and memory management options.
  *
@@ -219,15 +209,11 @@ typedef struct chima_context_* chima_context;
 
 /*! @brief Maximum character count for a `chima_string`
  *
- *  Maximum character count for a `chima_string`
- *
  *  @ingroup core
  */
 #define CHIMA_STRING_MAX_SIZE 256
 
 /*! @brief Data for a fixed size character array with length.
- *
- *  Data for a fixed size character array with some length.
  *
  *  @ingroup core
  */
@@ -242,8 +228,7 @@ typedef struct chima_string {
 
 /*! @brief Non-owning string view
  *
- *  Non-owning string view. Represents a string of size `len` starting at
- *  pointer `data`.
+ *  Represents a string of size `len` starting at pointer `data`.
  *
  *  @ingroup core
  */
@@ -258,7 +243,7 @@ typedef struct chima_string_view {
 
 /*! @brief RGBA floating point color.
  *
- *  RGBA floating point color. Represents color values in the range [0.0, 1.0].
+ *  Represents color values in the range [0.0, 1.0].
  *
  *  @ingroup core
  */
@@ -276,8 +261,6 @@ typedef struct chima_rect {
 } chima_rect;
 
 /*! @brief Error codes produced by chimatools functions.
- *
- *  Error codes produced by chimatools functions.
  *
  *  @ingroup core
  */
@@ -319,8 +302,6 @@ typedef enum chima_result {
 
 /*! @brief Get a `chima_result` value null terminated string representation.
  *
- *  Get a `chima_result` value null terminated string representation.
- *
  *  @param[in] ret `chima_result` enum value.
  *  @return Null terminated string representation for the provided enum
  *  value. "Unknown error" if an invalid value is provided.
@@ -331,14 +312,14 @@ CHIMA_API const char* chima_error_string(chima_result ret);
 
 /*! @brief Allocate and initialize a `chima_context` handle
  *
- *  Allocate and initialize a `chima_context` handle. Uses the user-provided
- *  allocation functions to allocate itself and all the following chimatools
- *  objects created using this context.
+ *  Uses the provided allocation functions to allocate itself
+ *  and all the following chimatools objects created using this
+ *  context.
  *
  *  If the context creation fails, your handle is set to `NULL`.
  *
  *  @param[in] chima Context to initialize. Not `NULL`.
- *  @param[in] alloc User defined allocator. Can be `NULL`.
+ *  @param[in] alloc User defined allocator. Optional.
  *  @return `CHIMA_NO_ERROR` on success. `CHIMA_ALLOC_FAILURE` on allocation
  *  failure. `CHIMA_INVALID_VALUE` if `chima` is `NULL`.
  *
@@ -346,9 +327,7 @@ CHIMA_API const char* chima_error_string(chima_result ret);
  */
 CHIMA_API chima_result chima_create_context(chima_context* chima, const chima_alloc* alloc);
 
-/*! @brief Sets the atlas initial size.
- *
- *  Sets the atlas initial size. Context local.
+/*! @brief Sets the atlas initial size. Context local.
  *
  *  `chima_create_atlas_image` uses this value as the initial size
  *  to create an image atlas.
@@ -363,9 +342,7 @@ CHIMA_API chima_result chima_create_context(chima_context* chima, const chima_al
  */
 CHIMA_API chima_u32 chima_set_atlas_initial(chima_context chima, chima_u32 initial);
 
-/*! @brief Sets the atlas grow factor.
- *
- *  Set the atlas grow factor. Context local.
+/*! @brief Sets the atlas grow factor. Context local.
  *
  *  When you create an atlas image using `chima_create_atlas_image`, the value
  *  defined by `chima_set_atlas_initial` is multiplied by this factor each time
@@ -383,10 +360,10 @@ CHIMA_API chima_f32 chima_set_atlas_factor(chima_context chima, chima_f32 factor
 
 /*! @brief Sets the image loader flip flag.
  *
- *  Sets the image loader flip flag. Used by image and image animation loading
- *  functions. If this flag is set, the resulting image bitmap will have its
- *  rows ordered from bottom to top. This is useful for loading images directly
- *  in OpenGL or similar libraries.
+ *  Used by image and image animation loading functions.
+ *  If this flag is set, the resulting image bitmap will have its
+ *  rows ordered from bottom to top. This is useful for loading
+ *  images directly in OpenGL or similar.
  *
  *  @note The default value is `CHIMA_FALSE`
  *
@@ -399,8 +376,6 @@ CHIMA_API chima_f32 chima_set_atlas_factor(chima_context chima, chima_f32 factor
 CHIMA_API chima_bool chima_set_flip_y(chima_context chima, chima_bool flip_y);
 
 /*! @brief Destroy and deallocate a `chima_context` handle.
- *
- *  Destroy and deallocate a `chima_context` handle.
  *
  *  Does NOT destroy any previously allocated chimatools objects. It is the
  *  user's responsability to destroy them before the context is destroyed.

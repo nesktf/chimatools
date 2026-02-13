@@ -1,5 +1,4 @@
 #include "./internal.h"
-#include "chimatools.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC

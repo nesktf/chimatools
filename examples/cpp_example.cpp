@@ -15,17 +15,17 @@ void run_thing() {
   // Use chima::context_view if you need a non-owning wrapper
   chima::context chima;
 
-  chima::image mari(chima, CHIMA_DEPTH_8U, "./test/data/witchmacs.png");
+  chima::image mari(chima, CHIMA_DEPTH_8U, "./examples/data/witchmacs.png");
   chima::scoped_resource mari_scope(chima, mari);
 
   chima::image blank(chima, 512, 512, 4, CHIMA_DEPTH_8U, chima::color(1.f, 1.f, 1.f));
   chima::scoped_resource blank_scope(chima, blank);
   blank.composite(mari, 0, 0);
 
-  chima::image chimata(chima, CHIMA_DEPTH_8U, "./test/data/chimata.png");
+  chima::image chimata(chima, CHIMA_DEPTH_8U, "./examples/data/chimata.png");
   chima::scoped_resource chimata_scope(chima, chimata);
 
-  chima::image_anim keiki(chima, "./test/data/keiki_hello.gif");
+  chima::image_anim keiki(chima, "./examples/data/keiki_hello.gif");
   chima::scoped_resource keiki_scope(chima, keiki);
 
   chima::sheet_data data(chima);
@@ -38,14 +38,14 @@ void run_thing() {
 #ifdef CHIMA_NO_DOWNCASTING
   const auto& atlas = spritesheet.get().atlas;
   const auto res =
-    chima_write_image(chima, &atlas, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.png");
+    chima_write_image(chima, &atlas, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.png");
   if (res != CHIMA_NO_ERROR) {
     throw chima::error(res);
   }
 #else
-  spritesheet.atlas().write(chima, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.png");
+  spritesheet.atlas().write(chima, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.png");
 #endif
-  spritesheet.write(chima, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.chima");
+  spritesheet.write(chima, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.chima");
 }
 
 void run_thing_noexcept() noexcept {
@@ -57,7 +57,7 @@ void run_thing_noexcept() noexcept {
     die(err);
   }
 
-  auto mari = chima::image::load(*chima, CHIMA_DEPTH_8U, "./test/data/witchmacs.png", &err);
+  auto mari = chima::image::load(*chima, CHIMA_DEPTH_8U, "./examples/data/witchmacs.png", &err);
   if (!mari) {
     die(err);
   }
@@ -74,13 +74,13 @@ void run_thing_noexcept() noexcept {
     die(err);
   }
 
-  auto chimata = chima::image::load(*chima, CHIMA_DEPTH_8U, "./test/data/chimata.png", &err);
+  auto chimata = chima::image::load(*chima, CHIMA_DEPTH_8U, "./examples/data/chimata.png", &err);
   if (!chimata) {
     die(err);
   }
   chima::scoped_resource chimata_scope(*chima, *chimata);
 
-  auto keiki = chima::image_anim::load(*chima, "./test/data/keiki_hello.gif", &err);
+  auto keiki = chima::image_anim::load(*chima, "./examples/data/keiki_hello.gif", &err);
   if (!keiki) {
     die(err);
   }
@@ -110,18 +110,19 @@ void run_thing_noexcept() noexcept {
 #ifdef CHIMA_NO_DOWNCASTING
   const auto& atlas = spritesheet->get().atlas;
   const auto res =
-    chima_write_image(*chima, &atlas, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.png");
+    chima_write_image(*chima, &atlas, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.png");
   if (res != CHIMA_NO_ERROR) {
     err = res;
     die(err);
   }
 #else
-  spritesheet->atlas().write(*chima, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.png", &err);
+  spritesheet->atlas().write(*chima, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.png",
+                             &err);
   if (err) {
     die(err);
   }
 #endif
-  spritesheet->write(*chima, CHIMA_FILE_FORMAT_PNG, "./test/data/test_sheet.chima", &err);
+  spritesheet->write(*chima, CHIMA_FILE_FORMAT_PNG, "./examples/data/test_sheet.chima", &err);
   if (err) {
     die(err);
   }

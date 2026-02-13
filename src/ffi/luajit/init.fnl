@@ -6,7 +6,7 @@
 
 (local max-str-sz 256)
 (local str-mt {:__tostring (fn [self]
-                             (ffi.string self.data self.length))})
+                             (ffi.string self.data self.len))})
 
 (set str-mt.__index str-mt)
 (local str-ctype (ffi.metatype :chima_string str-mt))
@@ -16,7 +16,7 @@
                      (if (<= strsz max-str-sz)
                          (let [out (ffi.new str-ctype)]
                            (ffi.copy out.data luastr)
-                           (set out.length strsz)
+                           (set out.len strsz)
                            out)
                          (values nil "String is too big"))))})
 

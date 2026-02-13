@@ -1,6 +1,7 @@
-#pragma once
+#ifndef CHIMATOOLS_HPP_
+#define CHIMATOOLS_HPP_
 
-#include <chimatools/chimatools.h>
+#include "./chimatools.h"
 
 #ifndef CHIMA_ASSERT
 #include <cassert>
@@ -27,7 +28,6 @@
   }
 
 #include <algorithm>
-#include <cstring>
 #include <optional>
 #include <string>
 #include <utility>
@@ -39,7 +39,7 @@
 #if __cplusplus >= 202002L
 #define CHIMA_CPP20_CONSTEXPR constexpr
 #else
-#define CHIMA_CPP20_CONSTEXPR inline
+#define CHIMA_CPP20_CONSTEXPR
 #endif
 
 #define CHIMA_DEFINE_DELETER(type_, obj_)                \
@@ -319,11 +319,11 @@ public:
 };
 
 constexpr inline chima_size image_bytes(const chima_image& img) noexcept {
-  constexpr auto sizes = std::to_array<chima_size>({
+  constexpr chima_size sizes[] = {
     sizeof(chima_u8),
     sizeof(chima_u16),
     sizeof(chima_f32),
-  });
+  };
   return img.depth > CHIMA_DEPTH_32F
          ? 0
          : img.extent.width * img.extent.height * img.channels * sizes[img.depth];
@@ -1129,3 +1129,4 @@ CHIMA_DEFINE_DELETER(::chima::spritesheet, sheet) {
 } // namespace chima
 
 #undef CHIMA_DEFINE_DELETER
+#endif // #define CHIMATOOLS_HPP_

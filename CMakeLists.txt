@@ -8,7 +8,8 @@ set(CHIMA_VER_REV 0)
 set(CHIMA_VER "${CHIMA_VER_MAJ}.${CHIMA_VER_MIN}.${CHIMA_VER_REV}")
 
 option(CHIMA_EMBED_GIT "Embed git info in version string" ON)
-option(CHIMA_SHARED_BUILD "Shared object build" ON)
+option(CHIMA_SHARED_BUILD "Shared object build" OFF)
+option(CHIMA_BUILD_EXAMPLES "Build chimatools examples" OFF)
 
 set(CHIMA_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(CHIMA_SOURCE_DIR "${CHIMA_DIR}/src")
@@ -35,9 +36,7 @@ else()
   set(CHIMA_VER_STR "${CHIMA_VER}")
 endif()
 
-set(CHIMA_DEFS)
 if (CHIMA_SHARED_BUILD)
-  list(APPEND CHIMA_DEFS "CHIMA_SHARED_BUILD_")
   set(CHIMA_BUILD_TYPE SHARED)
 else()
   set(CHIMA_BUILD_TYPE STATIC)
@@ -50,12 +49,35 @@ file(GLOB_RECURSE CHIMA_SOURCE_FILES "${CHIMA_SOURCE_DIR}/*.c")
 set(CHIMA_INCLUDE_FILES "${CHIMA_INCLUDE_DIR}/chimatools/chimatools.h"
                         "${CHIMA_INCLUDE_DIR}/chimatools/chimatools.hpp")
 
-configure_file("${CHIMA_SOURCE_DIR}/config.h.in" "include/chimatools/config.h" @ONLY)
+add_library(${PROJECT_NAME} ${CHIMA_BUILD_TYPE})
+target_sources(${PROJECT_NAME} PRIVATE ${CHIMA_SOURCE_FILES})
+target_link_libraries(${PROJECT_NAME} -lm)
 
-add_library(chimatools ${CHIMA_BUILD_TYPE})
+if (CHIMA_SHARED_BUILD)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE -DCHIMA_SHARED_BUILD_)
+endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
-set_target_properties(chimatools PROPERTIES LINKER_LANGUAGE CXX CXX_STANDARD 17)
-target_include_directories(chimatools PUBLIC
+target_include_directories(${PROJECT_NAME} PUBLIC
                            "$<BUILD_INTERFACE:${CHIMA_INCLUDE_DIR}>"
                            "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
-target_compile_definitions(chimatools PUBLIC ${CHIMA_DEFS})
+
+include(GNUInstallDirs)
+
+install(TARGETS ${PROJECT_NAME}
+        EXPORT ${PROJECT_NAME}-config
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(EXPORT ${PROJECT_NAME}-config
+        NAMESPACE ${PROJECT_NAME}::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/${PROJECT_NAME}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME})
+
+if (CHIMA_BUILD_EXAMPLES)
+  message(STATUS "chimatools: Examples enabled")
+  add_subdirectory("${CHIMA_DIR}/examples")
+endif()

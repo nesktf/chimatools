@@ -25,14 +25,14 @@ int main() {
   checkometoda();
 
   chima_image mari;
-  res = chima_load_image(chima, &mari, CHIMA_DEPTH_8U, "./res/witchmacs.png");
+  res = chima_load_image(chima, &mari, CHIMA_DEPTH_8U, "./examples/data/witchmacs.png");
   checkometoda();
 
   res = chima_composite_image(&blank, &mari, 0, 0);
   checkometoda();
 
   chima_image_anim keiki;
-  res = chima_load_image_anim(chima, &keiki, "./res/keiki_hello.gif");
+  res = chima_load_image_anim(chima, &keiki, "./examples/data/keiki_hello.gif");
   checkometoda();
 
   chima_sheet_data data;
@@ -43,7 +43,7 @@ int main() {
   checkometoda();
 
   chima_image chimata;
-  res = chima_load_image(chima, &chimata, CHIMA_DEPTH_8U, "./res/chimata.png");
+  res = chima_load_image(chima, &chimata, CHIMA_DEPTH_8U, "./examples/data/chimata.png");
   checkometoda();
 
   res = chima_sheet_add_image(data, &chimata, "chimata");
