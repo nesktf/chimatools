@@ -63,7 +63,7 @@ extern "C" {
  *
  *  Modified for patches that don't break the API.
  */
-#define CHIMA_VER_REV 0
+#define CHIMA_VER_REV 1
 
 /*! @brief One.
  *

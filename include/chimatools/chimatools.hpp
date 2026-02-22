@@ -42,20 +42,18 @@
 #define CHIMA_CPP20_CONSTEXPR
 #endif
 
-#define CHIMA_DEFINE_DELETER(type_, obj_)                \
-  template<>                                             \
-  struct chima_deleter<type_> {                          \
-  public:                                                \
-    chima_deleter(chima_context chima) : _chima(chima) { \
-      CHIMA_ASSERT(_chima);                              \
-    }                                                    \
-                                                         \
-  public:                                                \
-    void operator()(type_& obj_) noexcept;               \
-                                                         \
-  private:                                               \
-    chima_context _chima;                                \
-  };                                                     \
+#define CHIMA_DEFINE_DELETER(type_, obj_)                                        \
+  template<>                                                                     \
+  struct chima_deleter<type_> {                                                  \
+  public:                                                                        \
+    chima_deleter(chima_context chima) : _chima(chima) { CHIMA_ASSERT(_chima); } \
+                                                                                 \
+  public:                                                                        \
+    void operator()(type_& obj_) noexcept;                                       \
+                                                                                 \
+  private:                                                                       \
+    chima_context _chima;                                                        \
+  };                                                                             \
   inline void chima_deleter<type_>::operator()(type_& obj_) noexcept
 
 namespace chima {
@@ -162,16 +160,19 @@ public:
   Derived& set_flip_y(chima_bool flag) const {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_flip_y(_chima, flag);
+    return static_cast<Derived&>(*this);
   }
 
   Derived& set_atlas_factor(chima_f32 fac) const {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_atlas_factor(_chima, fac);
+    return static_cast<Derived&>(*this);
   }
 
   Derived& set_atlas_initial(chima_u32 extent) const {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_atlas_initial(_chima, extent);
+    return static_cast<Derived&>(*this);
   }
 
 public:
