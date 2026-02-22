@@ -157,19 +157,19 @@ protected:
   }
 
 public:
-  Derived& set_flip_y(chima_bool flag) const {
+  Derived& set_flip_y(chima_bool flag) {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_flip_y(_chima, flag);
     return static_cast<Derived&>(*this);
   }
 
-  Derived& set_atlas_factor(chima_f32 fac) const {
+  Derived& set_atlas_factor(chima_f32 fac) {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_atlas_factor(_chima, fac);
     return static_cast<Derived&>(*this);
   }
 
-  Derived& set_atlas_initial(chima_u32 extent) const {
+  Derived& set_atlas_initial(chima_u32 extent) {
     CHIMA_ASSERT(!_is_empty(_chima));
     chima_set_atlas_initial(_chima, extent);
     return static_cast<Derived&>(*this);
